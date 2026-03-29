@@ -105,14 +105,13 @@ export function parsePortfolioCsv(csv: string): ParsedPortfolioCsv {
     const cost = parseNumber(columnD);
 
     if (isTicker(columnB) && shares > 0) {
-      const pb = parseNumber(columnF);
       holdings.push({
         section: section || 'Other',
         name: columnA,
         ticker: columnB,
         shares,
         cost: Number.isFinite(cost) ? cost : 0,
-        pb: Number.isFinite(pb) && pb > 0 && pb < 100 ? pb : null,
+        pb: null,
         note: columnG
       });
       continue;

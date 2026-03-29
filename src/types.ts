@@ -23,9 +23,18 @@ export interface PriceQuote {
   prev: number | null;
   change: number | null;
   changePct: number | null;
+  priceToBook: number | null;
+  dividendYield: number | null;
+  shortName?: string | null;
 }
 
 export type PriceMap = Record<string, PriceQuote>;
+
+export interface CommoditySymbol {
+  displayTicker: string;
+  yahooTicker: string | null;
+  name: string;
+}
 
 export interface PortfolioSnapshot {
   holdings: Holding[];
@@ -47,7 +56,33 @@ export interface HoldingRowViewModel {
   dayChangeClass: string | null;
   pb: string;
   pbClass: string | null;
+  dividendYield: string;
+  dividendYieldClass: string | null;
   isStatic: boolean;
+}
+
+export interface CommodityPriceRowViewModel {
+  displayTicker: string;
+  yahooTicker: string;
+  name: string;
+  currentPrice: string;
+  currentPriceValue: number | null;
+}
+
+export interface CommodityRankingRowViewModel {
+  rank: number;
+  displayTicker: string;
+  yahooTicker: string;
+  name: string;
+  currentPrice: string;
+  currentPriceValue: number | null;
+  cheaperThanCount: number;
+  comparedAgainstCount: number;
+  comparisonSummary: string;
+}
+
+export interface CommodityRatiosViewModel {
+  rankings: CommodityRankingRowViewModel[];
 }
 
 export interface SectionViewModel {
@@ -93,5 +128,6 @@ export interface DashboardViewModel {
   summary: SummaryViewModel;
   sections: SectionViewModel[];
   sectors: SectorViewModel[];
+  commodityRatios: CommodityRatiosViewModel;
   initialStateJson: string;
 }

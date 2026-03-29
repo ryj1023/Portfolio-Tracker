@@ -40,8 +40,8 @@
     getElement('sSec').textContent = summary.sectors;
   }
 
-  function renderHoldings(sections) {
-    getElement('tab-holdings').innerHTML = sections.map((section) => `
+  function renderHoldings(sections, commodityRatios) {
+    getElement('tab-holdings').innerHTML = `${sections.map((section) => `
       <section class="section-card">
         <div class="section-header">
           <span class="section-badge" style="background: ${section.color}22; color: ${section.color}; border-color: ${section.color}44;">${escapeHtml(section.name)}</span>
@@ -60,6 +60,7 @@
                 <th>Gain/Loss</th>
                 <th>Day Chg</th>
                 <th>P/B</th>
+                <th>Div Yield</th>
               </tr>
             </thead>
             <tbody>
@@ -77,13 +78,38 @@
                   <td>${row.gainLossBadge ? `<span class="badge ${row.gainLossClass}">${escapeHtml(row.gainLossBadge)}</span>` : '<span class="muted">—</span>'}</td>
                   <td class="${row.dayChangeClass || 'muted'}">${escapeHtml(row.dayChange)}</td>
                   <td class="${row.pbClass || 'muted'}">${escapeHtml(row.pb)}</td>
+                  <td class="${row.dividendYieldClass || 'muted'}">${escapeHtml(row.dividendYield)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>
       </section>
-    `).join('');
+    `).join('')}
+
+      <section class="section-card">
+        <div class="section-header">
+          <span class="section-badge" style="background: #38bdf822; color: #38bdf8; border-color: #38bdf844;">Commodity Relative Value Ranking</span>
+          <span class="section-total">${escapeHtml(String(commodityRatios?.rankings?.length || 0))} commodities ranked cheapest → most expensive</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Ticker</th>
+                <th>Yahoo Symbol</th>
+                <th>Name</th>
+                <th>Current Price</th>
+                <th>Cheaper Than</th>
+              </tr>
+            </thead>
+            <tbody id="commodity-rankings-body"></tbody>
+          </table>
+        </div>
+      </section>`;
+
+    renderCommodityRatios(commodityRatios);
   }
 
   function renderSectors(sectors) {
@@ -128,9 +154,27 @@
     `;
   }
 
+  function renderCommodityRatios(commodityRatios) {
+    const rankingsBody = getElement('commodity-rankings-body');
+    if (!rankingsBody || !commodityRatios) {
+      return;
+    }
+
+    rankingsBody.innerHTML = commodityRatios.rankings.map((row) => `
+      <tr>
+        <td>${escapeHtml(String(row.rank))}</td>
+        <td class="ticker">${escapeHtml(row.displayTicker)}</td>
+        <td>${escapeHtml(row.yahooTicker)}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.currentPrice)}</td>
+        <td>${escapeHtml(row.comparisonSummary)}</td>
+      </tr>
+    `).join('');
+  }
+
   function renderViewModel(viewModel) {
     renderSummary(viewModel.summary);
-    renderHoldings(viewModel.sections);
+    renderHoldings(viewModel.sections, viewModel.commodityRatios);
     renderSectors(viewModel.sectors);
   }
 
@@ -223,11 +267,16 @@
     });
 
     const pbHoldings = state.holdings
-      .filter((holding) => holding.pb != null)
-      .sort((left, right) => left.pb - right.pb);
+      .map((holding) => ({
+        ticker: holding.ticker,
+        priceToBook: state.prices[holding.ticker]?.priceToBook,
+        section: holding.section
+      }))
+      .filter((holding) => holding.priceToBook != null)
+      .sort((left, right) => left.priceToBook - right.priceToBook);
     createChart('cPB', 'bar', pbHoldings.map((holding) => holding.ticker), [{
-      data: pbHoldings.map((holding) => holding.pb),
-      backgroundColor: pbHoldings.map((holding) => holding.pb < 1 ? '#22c55e99' : holding.pb < 2 ? '#facc1599' : '#ef444499'),
+      data: pbHoldings.map((holding) => holding.priceToBook),
+      backgroundColor: pbHoldings.map((holding) => holding.priceToBook < 1 ? '#22c55e99' : holding.priceToBook < 2 ? '#facc1599' : '#ef444499'),
       borderRadius: 8
     }], {
       plugins: { legend: { display: false } }

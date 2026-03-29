@@ -1,6 +1,7 @@
-import { SECTION_COLORS } from '../data/portfolioData';
+import { COMMODITY_RATIO_SYMBOLS, SECTION_COLORS } from '../data/portfolioData';
 import {
   ClientState,
+  CommodityRatiosViewModel,
   DashboardViewModel,
   Holding,
   HoldingRowViewModel,
@@ -27,6 +28,17 @@ function formatSignedPercent(value: number, fractionDigits = 1): string {
   return `${sign}${Math.abs(value).toFixed(fractionDigits)}%`;
 }
 
+function formatPercent(value: number, fractionDigits = 2): string {
+  return `${value.toFixed(fractionDigits)}%`;
+}
+
+function formatNumber(value: number, fractionDigits = 4): string {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits
+  });
+}
+
 function formatShares(value: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
@@ -42,7 +54,10 @@ function buildHoldingRow(holding: Holding, prices: PriceMap): HoldingRowViewMode
   const gainLoss = marketValue != null ? marketValue - holding.cost : null;
   const gainLossPct = gainLoss != null && holding.cost ? (gainLoss / holding.cost) * 100 : null;
   const dayChangePct = price?.changePct ?? null;
-  const pbClass = holding.pb == null ? null : holding.pb < 1 ? 'pos' : holding.pb >= 3 ? 'neg' : 'neu';
+  const priceToBook = price?.priceToBook ?? null;
+  const dividendYield = price?.dividendYield ?? null;
+  const pbClass = priceToBook == null ? null : priceToBook < 1 ? 'pos' : priceToBook >= 3 ? 'neg' : 'neu';
+  const dividendYieldClass = dividendYield == null ? null : 'pos';
 
   return {
     ticker: holding.ticker,
@@ -56,8 +71,10 @@ function buildHoldingRow(holding: Holding, prices: PriceMap): HoldingRowViewMode
     gainLossClass: gainLossPct != null ? (gainLossPct >= 0 ? 'pos' : 'neg') : null,
     dayChange: dayChangePct != null ? formatSignedPercent(dayChangePct, 2) : '—',
     dayChangeClass: dayChangePct != null ? (dayChangePct >= 0 ? 'pos' : 'neg') : null,
-    pb: holding.pb != null ? holding.pb.toFixed(2) : '—',
+    pb: priceToBook != null ? priceToBook.toFixed(2) : '—',
     pbClass,
+    dividendYield: dividendYield != null ? formatPercent(dividendYield, 2) : 'N/A',
+    dividendYieldClass,
     isStatic: false
   };
 }
@@ -77,6 +94,8 @@ function buildStaticRow(name: string, value: number): HoldingRowViewModel {
     dayChangeClass: null,
     pb: '—',
     pbClass: null,
+    dividendYield: 'N/A',
+    dividendYieldClass: null,
     isStatic: true
   };
 }
@@ -159,6 +178,70 @@ function buildSectors(snapshot: PortfolioSnapshot, prices: PriceMap): SectorView
     });
 }
 
+function buildCommodityRatios(prices: PriceMap): CommodityRatiosViewModel {
+  const commodityPrices = COMMODITY_RATIO_SYMBOLS
+    .map((commodity) => {
+      const price = commodity.yahooTicker ? prices[commodity.yahooTicker]?.price ?? null : null;
+      return {
+        displayTicker: commodity.displayTicker,
+        yahooTicker: commodity.yahooTicker ?? '—',
+        name: commodity.name,
+        currentPrice: price != null ? formatCurrency(price, 2) : 'N/A',
+        currentPriceValue: price
+      };
+    })
+    .sort((left, right) => {
+      if (left.currentPriceValue == null && right.currentPriceValue == null) return left.displayTicker.localeCompare(right.displayTicker);
+      if (left.currentPriceValue == null) return 1;
+      if (right.currentPriceValue == null) return -1;
+      return left.currentPriceValue - right.currentPriceValue;
+    });
+
+  const comparableCount = commodityPrices.filter((commodity) => commodity.currentPriceValue != null).length;
+  const rankings = commodityPrices
+    .map((commodity) => {
+      const currentPriceValue = commodity.currentPriceValue;
+      const cheaperThanCount = currentPriceValue == null
+        ? 0
+        : commodityPrices.filter((candidate) => candidate.currentPriceValue != null && candidate.displayTicker !== commodity.displayTicker && currentPriceValue < candidate.currentPriceValue).length;
+      const comparedAgainstCount = currentPriceValue == null ? 0 : Math.max(comparableCount - 1, 0);
+
+      return {
+        rank: 0,
+        displayTicker: commodity.displayTicker,
+        yahooTicker: commodity.yahooTicker,
+        name: commodity.name,
+        currentPrice: commodity.currentPrice,
+        currentPriceValue,
+        cheaperThanCount,
+        comparedAgainstCount,
+        comparisonSummary: comparedAgainstCount > 0 ? `${cheaperThanCount} of ${comparedAgainstCount}` : 'N/A'
+      };
+    })
+    .sort((left, right) => {
+      if (left.currentPriceValue == null && right.currentPriceValue == null) {
+        return left.displayTicker.localeCompare(right.displayTicker);
+      }
+      if (left.currentPriceValue == null) return 1;
+      if (right.currentPriceValue == null) return -1;
+      if (right.cheaperThanCount !== left.cheaperThanCount) {
+        return right.cheaperThanCount - left.cheaperThanCount;
+      }
+      if (left.currentPriceValue !== right.currentPriceValue) {
+        return left.currentPriceValue - right.currentPriceValue;
+      }
+      return left.displayTicker.localeCompare(right.displayTicker);
+    })
+    .map((commodity, index) => ({
+      ...commodity,
+      rank: index + 1
+    }));
+
+  return {
+    rankings
+  };
+}
+
 export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap): ClientState {
   return {
     holdings: snapshot.holdings,
@@ -169,10 +252,11 @@ export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap):
   };
 }
 
-export function buildDashboardViewModel(snapshot: PortfolioSnapshot, prices: PriceMap): DashboardViewModel {
+export function buildDashboardViewModel(snapshot: PortfolioSnapshot, prices: PriceMap, commodityPrices: PriceMap): DashboardViewModel {
   let totalValue = 0;
   let totalCost = 0;
   let dayChange = 0;
+  const commodityRatios = buildCommodityRatios(commodityPrices);
 
   snapshot.holdings.forEach((holding) => {
     const value = holdingValue(holding, prices) ?? holding.cost;
@@ -209,6 +293,7 @@ export function buildDashboardViewModel(snapshot: PortfolioSnapshot, prices: Pri
     },
     sections: buildSections(snapshot, prices),
     sectors: buildSectors(snapshot, prices),
-    initialStateJson: JSON.stringify(clientState).replace(/</g, '\\u003c')
+    commodityRatios,
+    initialStateJson: JSON.stringify(clientState).replace(/</g, '\u003c')
   };
 }

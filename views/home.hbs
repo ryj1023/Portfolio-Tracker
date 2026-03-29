@@ -69,6 +69,7 @@
                   <th>Gain/Loss</th>
                   <th>Day Chg</th>
                   <th>P/B</th>
+                  <th>Div Yield</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,6 +93,7 @@
                     </td>
                     <td class="{{dayChangeClass}}">{{dayChange}}</td>
                     <td class="{{pbClass}}">{{pb}}</td>
+                    <td class="{{dividendYieldClass}}">{{dividendYield}}</td>
                   </tr>
                 {{/each}}
               </tbody>
@@ -99,6 +101,39 @@
           </div>
         </section>
       {{/each}}
+
+      <section class="section-card">
+        <div class="section-header">
+          <span class="section-badge" style="background: #38bdf822; color: #38bdf8; border-color: #38bdf844;">Commodity Relative Value Ranking</span>
+          <span class="section-total">{{commodityRatios.rankings.length}} commodities ranked cheapest → most expensive</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Ticker</th>
+                <th>Yahoo Symbol</th>
+                <th>Name</th>
+                <th>Current Price</th>
+                <th>Cheaper Than</th>
+              </tr>
+            </thead>
+            <tbody id="commodity-rankings-body">
+              {{#each commodityRatios.rankings}}
+                <tr>
+                  <td>{{rank}}</td>
+                  <td class="ticker">{{displayTicker}}</td>
+                  <td>{{yahooTicker}}</td>
+                  <td>{{name}}</td>
+                  <td>{{currentPrice}}</td>
+                  <td>{{comparisonSummary}}</td>
+                </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div id="tab-charts" class="tab-panel">

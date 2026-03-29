@@ -1,4 +1,4 @@
-import { Holding, StaticItem, SummaryData } from '../types';
+import { CommoditySymbol, Holding, StaticItem, SummaryData } from '../types';
 
 export const SECTION_COLORS: Record<string, string> = {
   'Oil & Gas': '#2ea043',
@@ -44,6 +44,20 @@ export const SECTOR_MAP: Record<string, string> = {
 export const DEFAULT_SUMMARY: SummaryData = {
   netWorth: 267495
 };
+
+export const COMMODITY_RATIO_SYMBOLS: CommoditySymbol[] = [
+  { displayTicker: 'cl1!', yahooTicker: 'CL=F', name: 'Crude Oil Futures' },
+  { displayTicker: 'si1!', yahooTicker: 'SI=F', name: 'Silver Futures' },
+  { displayTicker: 'gc1!', yahooTicker: 'GC=F', name: 'Gold Futures' },
+  { displayTicker: 'fef1!', yahooTicker: null, name: 'Iron Ore Futures' },
+  { displayTicker: 'acf1!', yahooTicker: null, name: 'Australia Coking Coal Futures' },
+  { displayTicker: 'pl1!', yahooTicker: 'PL=F', name: 'Platinum Futures' },
+  { displayTicker: 'pa1!', yahooTicker: 'PA=F', name: 'Palladium Futures' },
+  { displayTicker: 'ng1!', yahooTicker: 'NG=F', name: 'Natural Gas Futures' },
+  { displayTicker: 'CDNCRUDE', yahooTicker: '^CDNCRUDE', name: 'Canadian Crude Index' },
+  { displayTicker: 'UX1!', yahooTicker: 'UX=F', name: 'Uranium Futures' },
+  { displayTicker: 'ncf1!', yahooTicker: null, name: 'Newcastle Coal Futures' }
+];
 
 export const DEFAULT_STATIC_ITEMS: StaticItem[] = [
   { section: 'Precious Metals', name: 'Physical Gold (3.47 oz)', value: 15587 },

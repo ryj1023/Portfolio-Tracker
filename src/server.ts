@@ -1,8 +1,9 @@
 import path from 'node:path';
 import express from 'express';
 import { engine } from 'express-handlebars';
+import { COMMODITY_RATIO_SYMBOLS } from './data/portfolioData';
 import { PortfolioStore } from './services/portfolioStore';
-import { fetchPrices } from './services/priceService';
+import { fetchPrices, fetchTickerPrices } from './services/priceService';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
 
 const app = express();
@@ -24,10 +25,17 @@ app.use(express.static(path.join(projectRoot, 'public')));
 
 async function buildDashboardPayload() {
   const snapshot = store.getSnapshot();
-  const prices = await fetchPrices(snapshot.holdings);
+  const [prices, commodityPrices] = await Promise.all([
+    fetchPrices(snapshot.holdings),
+    fetchTickerPrices(
+      COMMODITY_RATIO_SYMBOLS
+        .map((commodity) => commodity.yahooTicker)
+        .filter((ticker): ticker is string => ticker != null)
+    )
+  ]);
   return {
     state: buildClientState(snapshot, prices),
-    viewModel: buildDashboardViewModel(snapshot, prices)
+    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices)
   };
 }
 
