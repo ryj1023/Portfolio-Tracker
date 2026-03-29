@@ -30,6 +30,13 @@ export interface PriceQuote {
 
 export type PriceMap = Record<string, PriceQuote>;
 
+export interface HistoricalPricePoint {
+  date: string;
+  close: number;
+}
+
+export type HistoricalPriceMap = Record<string, HistoricalPricePoint[]>;
+
 export interface CommoditySymbol {
   displayTicker: string;
   yahooTicker: string | null;
@@ -81,8 +88,17 @@ export interface CommodityRankingRowViewModel {
   comparisonSummary: string;
 }
 
+export interface CommodityLookbackOptionViewModel {
+  value: string;
+  label: string;
+  selected: boolean;
+}
+
 export interface CommodityRatiosViewModel {
   rankings: CommodityRankingRowViewModel[];
+  lookback: string;
+  lookbackLabel: string;
+  lookbackOptions: CommodityLookbackOptionViewModel[];
 }
 
 export interface SectionViewModel {

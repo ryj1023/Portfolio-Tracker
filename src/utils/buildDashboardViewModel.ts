@@ -1,8 +1,10 @@
 import { COMMODITY_RATIO_SYMBOLS, SECTION_COLORS } from '../data/portfolioData';
 import {
   ClientState,
+  CommodityLookbackOptionViewModel,
   CommodityRatiosViewModel,
   DashboardViewModel,
+  HistoricalPriceMap,
   Holding,
   HoldingRowViewModel,
   PortfolioSnapshot,
@@ -10,6 +12,13 @@ import {
   SectorViewModel,
   SectionViewModel
 } from '../types';
+
+const COMMODITY_LOOKBACK_LABELS: Record<string, string> = {
+  all: 'All time',
+  '1y': '1 Year',
+  '3y': '3 Years',
+  '5y': '5 Years'
+};
 
 function formatCurrency(value: number, fractionDigits = 0): string {
   return `$${value.toLocaleString('en-US', {
@@ -37,6 +46,36 @@ function formatNumber(value: number, fractionDigits = 4): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: fractionDigits
   });
+}
+
+function percentileRank(values: number[], currentValue: number): number | null {
+  if (!values.length) {
+    return null;
+  }
+
+  const belowOrEqualCount = values.filter((value) => value <= currentValue).length;
+  return belowOrEqualCount / values.length;
+}
+
+function buildRatioSeries(leftTicker: string, rightTicker: string, history: HistoricalPriceMap): number[] {
+  const leftHistory = history[leftTicker] ?? [];
+  const rightHistory = history[rightTicker] ?? [];
+
+  if (!leftHistory.length || !rightHistory.length) {
+    return [];
+  }
+
+  const rightByDate = new Map(rightHistory.map((point) => [point.date, point.close]));
+
+  return leftHistory
+    .map((point) => {
+      const rightClose = rightByDate.get(point.date);
+      if (rightClose == null || rightClose <= 0 || point.close <= 0) {
+        return null;
+      }
+      return point.close / rightClose;
+    })
+    .filter((ratio): ratio is number => ratio != null && Number.isFinite(ratio));
 }
 
 function formatShares(value: number): string {
@@ -178,7 +217,7 @@ function buildSectors(snapshot: PortfolioSnapshot, prices: PriceMap): SectorView
     });
 }
 
-function buildCommodityRatios(prices: PriceMap): CommodityRatiosViewModel {
+function buildCommodityRatios(prices: PriceMap, history: HistoricalPriceMap, lookback: string): CommodityRatiosViewModel {
   const commodityPrices = COMMODITY_RATIO_SYMBOLS
     .map((commodity) => {
       const price = commodity.yahooTicker ? prices[commodity.yahooTicker]?.price ?? null : null;
@@ -197,14 +236,36 @@ function buildCommodityRatios(prices: PriceMap): CommodityRatiosViewModel {
       return left.currentPriceValue - right.currentPriceValue;
     });
 
-  const comparableCount = commodityPrices.filter((commodity) => commodity.currentPriceValue != null).length;
   const rankings = commodityPrices
     .map((commodity) => {
       const currentPriceValue = commodity.currentPriceValue;
-      const cheaperThanCount = currentPriceValue == null
-        ? 0
-        : commodityPrices.filter((candidate) => candidate.currentPriceValue != null && candidate.displayTicker !== commodity.displayTicker && currentPriceValue < candidate.currentPriceValue).length;
-      const comparedAgainstCount = currentPriceValue == null ? 0 : Math.max(comparableCount - 1, 0);
+      let cheaperThanCount = 0;
+      let comparedAgainstCount = 0;
+
+      if (currentPriceValue != null && commodity.yahooTicker !== '—') {
+        commodityPrices.forEach((candidate) => {
+          if (
+            candidate.displayTicker === commodity.displayTicker
+            || candidate.currentPriceValue == null
+            || candidate.yahooTicker === '—'
+          ) {
+            return;
+          }
+
+          const currentRatio = candidate.currentPriceValue !== 0 ? currentPriceValue / candidate.currentPriceValue : null;
+          const ratioHistory = buildRatioSeries(commodity.yahooTicker, candidate.yahooTicker, history);
+          const percentile = currentRatio != null ? percentileRank(ratioHistory, currentRatio) : null;
+
+          if (percentile == null) {
+            return;
+          }
+
+          comparedAgainstCount += 1;
+          if (percentile < 0.5) {
+            cheaperThanCount += 1;
+          }
+        });
+      }
 
       return {
         rank: 0,
@@ -227,6 +288,9 @@ function buildCommodityRatios(prices: PriceMap): CommodityRatiosViewModel {
       if (right.cheaperThanCount !== left.cheaperThanCount) {
         return right.cheaperThanCount - left.cheaperThanCount;
       }
+      if (right.comparedAgainstCount !== left.comparedAgainstCount) {
+        return right.comparedAgainstCount - left.comparedAgainstCount;
+      }
       if (left.currentPriceValue !== right.currentPriceValue) {
         return left.currentPriceValue - right.currentPriceValue;
       }
@@ -238,7 +302,14 @@ function buildCommodityRatios(prices: PriceMap): CommodityRatiosViewModel {
     }));
 
   return {
-    rankings
+    rankings,
+    lookback,
+    lookbackLabel: COMMODITY_LOOKBACK_LABELS[lookback] ?? COMMODITY_LOOKBACK_LABELS.all,
+    lookbackOptions: Object.entries(COMMODITY_LOOKBACK_LABELS).map<CommodityLookbackOptionViewModel>(([value, label]) => ({
+      value,
+      label,
+      selected: value === lookback
+    }))
   };
 }
 
@@ -252,11 +323,17 @@ export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap):
   };
 }
 
-export function buildDashboardViewModel(snapshot: PortfolioSnapshot, prices: PriceMap, commodityPrices: PriceMap): DashboardViewModel {
+export function buildDashboardViewModel(
+  snapshot: PortfolioSnapshot,
+  prices: PriceMap,
+  commodityPrices: PriceMap,
+  commodityHistory: HistoricalPriceMap,
+  commodityLookback: string
+): DashboardViewModel {
   let totalValue = 0;
   let totalCost = 0;
   let dayChange = 0;
-  const commodityRatios = buildCommodityRatios(commodityPrices);
+  const commodityRatios = buildCommodityRatios(commodityPrices, commodityHistory, commodityLookback);
 
   snapshot.holdings.forEach((holding) => {
     const value = holdingValue(holding, prices) ?? holding.cost;

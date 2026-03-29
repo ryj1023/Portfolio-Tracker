@@ -2,6 +2,7 @@
   const state = window.__PORTFOLIO__ || { holdings: [], staticItems: [], summaryData: {}, prices: {}, colors: {} };
   const charts = {};
   let importMode = 'text';
+  let commodityLookback = 'all';
 
   const getElement = (id) => document.getElementById(id);
   const escapeHtml = (value) => String(value)
@@ -40,7 +41,32 @@
     getElement('sSec').textContent = summary.sectors;
   }
 
+  function commodityLookbackOptionsMarkup(commodityRatios) {
+    return (commodityRatios?.lookbackOptions || []).map((option) => `
+      <option value="${escapeHtml(option.value)}" ${option.selected ? 'selected' : ''}>${escapeHtml(option.label)}</option>
+    `).join('');
+  }
+
+  function commodityApiUrl(path) {
+    const url = new URL(path, window.location.origin);
+    url.searchParams.set('lookback', commodityLookback);
+    return `${url.pathname}${url.search}`;
+  }
+
+  function bindCommodityLookbackControl() {
+    const select = getElement('commodityLookbackSelect');
+    if (!select) {
+      return;
+    }
+
+    select.addEventListener('change', async (event) => {
+      commodityLookback = event.target.value;
+      await refreshPrices();
+    });
+  }
+
   function renderHoldings(sections, commodityRatios) {
+    commodityLookback = commodityRatios?.lookback || commodityLookback;
     getElement('tab-holdings').innerHTML = `${sections.map((section) => `
       <section class="section-card">
         <div class="section-header">
@@ -90,7 +116,13 @@
       <section class="section-card">
         <div class="section-header">
           <span class="section-badge" style="background: #38bdf822; color: #38bdf8; border-color: #38bdf844;">Commodity Relative Value Ranking</span>
-          <span class="section-total">${escapeHtml(String(commodityRatios?.rankings?.length || 0))} commodities ranked cheapest → most expensive</span>
+          <span class="section-total">${escapeHtml(String(commodityRatios?.rankings?.length || 0))} commodities ranked using ${escapeHtml(commodityRatios?.lookbackLabel || 'All time')} history</span>
+        </div>
+        <div class="section-header">
+          <label class="field-label" for="commodityLookbackSelect">Ranking lookback</label>
+          <select id="commodityLookbackSelect" class="input-select" aria-label="Commodity ranking lookback">
+            ${commodityLookbackOptionsMarkup(commodityRatios)}
+          </select>
         </div>
         <div class="table-wrap">
           <table>
@@ -101,7 +133,7 @@
                 <th>Yahoo Symbol</th>
                 <th>Name</th>
                 <th>Current Price</th>
-                <th>Cheaper Than</th>
+                <th>Historically Cheap Vs</th>
               </tr>
             </thead>
             <tbody id="commodity-rankings-body"></tbody>
@@ -110,6 +142,7 @@
       </section>`;
 
     renderCommodityRatios(commodityRatios);
+    bindCommodityLookbackControl();
   }
 
   function renderSectors(sectors) {
@@ -342,7 +375,7 @@
     setStatus('main', 'loading', 'Fetching fresh prices from the Node backend…');
 
     try {
-      const response = await fetch('/api/prices');
+      const response = await fetch(commodityApiUrl('/api/prices'));
       if (!response.ok) {
         throw new Error('Unable to refresh prices.');
       }
@@ -350,6 +383,7 @@
       const payload = await response.json();
       Object.assign(state, payload.state);
       renderViewModel(payload.viewModel);
+      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
       if (getElement('tab-charts').classList.contains('active')) {
         drawCharts();
       }
@@ -374,7 +408,7 @@
       const response = await fetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv })
+        body: JSON.stringify({ csv, lookback: commodityLookback })
       });
 
       const payload = await response.json();
@@ -384,6 +418,7 @@
 
       Object.assign(state, payload.state);
       renderViewModel(payload.viewModel);
+      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
       if (getElement('tab-charts').classList.contains('active')) {
         drawCharts();
       }
@@ -409,6 +444,9 @@
       closeImportModal();
     }
   });
+
+  commodityLookback = new URLSearchParams(window.location.search).get('lookback') || 'all';
+  bindCommodityLookbackControl();
 
   showTab('holdings');
 })();

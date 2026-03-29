@@ -1,11 +1,22 @@
-import { Holding, PriceMap, PriceQuote } from '../types';
+import { HistoricalPriceMap, HistoricalPricePoint, Holding, PriceMap, PriceQuote } from '../types';
 
 type YahooFinanceModule = {
   default: new (options?: { suppressNotices?: string[] }) => {
     quote: (ticker: string) => Promise<unknown>;
     quoteSummary: (ticker: string, options: { modules: string[] }) => Promise<unknown>;
+    chart: (ticker: string, options: { period1: Date; interval: string }) => Promise<unknown>;
   };
 };
+
+interface YahooChartQuote {
+  date?: string | Date;
+  close?: number | null;
+  adjclose?: number | null;
+}
+
+interface YahooChartResult {
+  quotes?: YahooChartQuote[];
+}
 
 interface YahooQuote {
   symbol?: string;
@@ -96,6 +107,32 @@ function toQuote(quote: unknown, quoteSummary?: unknown): PriceQuote {
   return { price, prev, change, changePct, priceToBook, dividendYield, shortName: quote.shortName ?? null };
 }
 
+function isYahooChartResult(value: unknown): value is YahooChartResult {
+  return value != null && typeof value === 'object';
+}
+
+function toHistoricalPoints(chartResult: unknown): HistoricalPricePoint[] {
+  if (!isYahooChartResult(chartResult) || !Array.isArray(chartResult.quotes)) {
+    return [];
+  }
+
+  return chartResult.quotes
+    .map((quote) => {
+      const close = typeof quote.adjclose === 'number' && Number.isFinite(quote.adjclose)
+        ? quote.adjclose
+        : typeof quote.close === 'number' && Number.isFinite(quote.close)
+          ? quote.close
+          : null;
+      if (close == null || close <= 0 || quote.date == null) {
+        return null;
+      }
+
+      const date = quote.date instanceof Date ? quote.date.toISOString().slice(0, 10) : new Date(quote.date).toISOString().slice(0, 10);
+      return Number.isNaN(Date.parse(date)) ? null : { date, close };
+    })
+    .filter((point): point is HistoricalPricePoint => point != null);
+}
+
 async function fetchQuoteMap(tickers: string[], includeFundamentals: boolean): Promise<PriceMap> {
   const yahooFinance = await getYahooFinance();
   const results = await Promise.allSettled(
@@ -133,4 +170,25 @@ export async function fetchPrices(holdings: Holding[]): Promise<PriceMap> {
 
 export async function fetchTickerPrices(tickers: string[]): Promise<PriceMap> {
   return fetchQuoteMap([...new Set(tickers)], false);
+}
+
+export async function fetchTickerHistory(tickers: string[], lookbackDays?: number | null): Promise<HistoricalPriceMap> {
+  const uniqueTickers = [...new Set(tickers)];
+  const yahooFinance = await getYahooFinance();
+  const period1 = typeof lookbackDays === 'number'
+    ? new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000)
+    : new Date('1900-01-01T00:00:00.000Z');
+
+  const results = await Promise.allSettled(
+    uniqueTickers.map(async (ticker) => ({
+      ticker,
+      chart: await yahooFinance.chart(ticker, { period1, interval: '1d' })
+    }))
+  );
+
+  return uniqueTickers.reduce<HistoricalPriceMap>((accumulator, ticker) => {
+    const match = results.find((result): result is PromiseFulfilledResult<{ ticker: string; chart: unknown }> => result.status === 'fulfilled' && result.value.ticker === ticker);
+    accumulator[ticker] = match ? toHistoricalPoints(match.value.chart) : [];
+    return accumulator;
+  }, {});
 }

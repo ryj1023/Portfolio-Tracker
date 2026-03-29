@@ -105,7 +105,15 @@
       <section class="section-card">
         <div class="section-header">
           <span class="section-badge" style="background: #38bdf822; color: #38bdf8; border-color: #38bdf844;">Commodity Relative Value Ranking</span>
-          <span class="section-total">{{commodityRatios.rankings.length}} commodities ranked cheapest → most expensive</span>
+          <span class="section-total">{{commodityRatios.rankings.length}} commodities ranked using {{commodityRatios.lookbackLabel}} history</span>
+        </div>
+        <div class="section-header">
+          <label class="field-label" for="commodityLookbackSelect">Ranking lookback</label>
+          <select id="commodityLookbackSelect" class="input-select" aria-label="Commodity ranking lookback">
+            {{#each commodityRatios.lookbackOptions}}
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
         </div>
         <div class="table-wrap">
           <table>
@@ -116,7 +124,7 @@
                 <th>Yahoo Symbol</th>
                 <th>Name</th>
                 <th>Current Price</th>
-                <th>Cheaper Than</th>
+                <th>Historically Cheap Vs</th>
               </tr>
             </thead>
             <tbody id="commodity-rankings-body">
