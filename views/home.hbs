@@ -1,0 +1,188 @@
+<div class="shell">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Server-rendered portfolio dashboard</p>
+      <h1>{{pageTitle}}</h1>
+      <p class="subtitle">Node.js handles price refreshes, CSV imports, and the portfolio snapshot rendered into Handlebars.</p>
+    </div>
+    <div class="toolbar">
+      <button id="refreshPricesButton" class="button button-secondary" type="button">
+        <span id="rfIcon">↻</span>
+        Refresh Prices
+      </button>
+      <button id="openImportButton" class="button button-primary" type="button">Import CSV</button>
+    </div>
+  </header>
+
+  <section class="stats-grid">
+    <article class="stat-card">
+      <span class="stat-label">Total Value</span>
+      <strong class="stat-value neu" id="sTotal">{{summary.totalValue}}</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Day Change</span>
+      <strong class="stat-value {{summary.dayChangeClass}}" id="sDay">{{summary.dayChange}}</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Total Gain/Loss</span>
+      <strong class="stat-value {{summary.totalGainLossClass}}" id="sGL">{{summary.totalGainLoss}}</strong>
+    </article>
+    <article class="stat-card compact">
+      <span class="stat-label">Equities</span>
+      <strong class="stat-value" id="sCnt">{{summary.equities}}</strong>
+    </article>
+    <article class="stat-card compact">
+      <span class="stat-label">Sectors</span>
+      <strong class="stat-value" id="sSec">{{summary.sectors}}</strong>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div class="tabs" role="tablist" aria-label="Dashboard views">
+      <button class="tab-button active" type="button" data-tab="holdings">Holdings</button>
+      <button class="tab-button" type="button" data-tab="charts">Charts</button>
+      <button class="tab-button" type="button" data-tab="sectors">Sectors</button>
+    </div>
+
+    <div class="status-row">
+      <span id="statusPill" class="status-pill ok">Ready</span>
+      <span id="statusText">Server-rendered data loaded.</span>
+    </div>
+
+    <div id="tab-holdings" class="tab-panel active">
+      {{#each sections}}
+        <section class="section-card">
+          <div class="section-header">
+            <span class="section-badge" style="background: {{color}}22; color: {{color}}; border-color: {{color}}44;">{{name}}</span>
+            <span class="section-total">{{totalValue}}</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Name</th>
+                  <th>Shares</th>
+                  <th>Cost Basis</th>
+                  <th>Price</th>
+                  <th>Mkt Value</th>
+                  <th>Gain/Loss</th>
+                  <th>Day Chg</th>
+                  <th>P/B</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#each rows}}
+                  <tr>
+                    <td class="ticker">{{#if ticker}}{{ticker}}{{else}}—{{/if}}</td>
+                    <td>
+                      <div>{{name}}</div>
+                      {{#if note}}<div class="note">{{note}}</div>{{/if}}
+                    </td>
+                    <td>{{shares}}</td>
+                    <td>{{costBasis}}</td>
+                    <td>{{price}}</td>
+                    <td>{{marketValue}}</td>
+                    <td>
+                      {{#if gainLossBadge}}
+                        <span class="badge {{gainLossClass}}">{{gainLossBadge}}</span>
+                      {{else}}
+                        <span class="muted">—</span>
+                      {{/if}}
+                    </td>
+                    <td class="{{dayChangeClass}}">{{dayChange}}</td>
+                    <td class="{{pbClass}}">{{pb}}</td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {{/each}}
+    </div>
+
+    <div id="tab-charts" class="tab-panel">
+      <div class="chart-grid">
+        <article class="chart-card"><h2>Allocation by Sector</h2><canvas id="cPie"></canvas></article>
+        <article class="chart-card"><h2>Top Holdings</h2><canvas id="cTop"></canvas></article>
+        <article class="chart-card"><h2>Price-to-Book</h2><canvas id="cPB"></canvas></article>
+        <article class="chart-card"><h2>Gain / Loss %</h2><canvas id="cGL"></canvas></article>
+      </div>
+    </div>
+
+    <div id="tab-sectors" class="tab-panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Sector</th>
+              <th>Value</th>
+              <th>Allocation</th>
+              <th>Cost Basis</th>
+              <th>Gain/Loss</th>
+              <th>Holdings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each sectors}}
+              <tr>
+                <td>
+                  <span class="sector-key" style="background: {{color}};"></span>
+                  {{name}}
+                  {{#if isStatic}}<span class="muted small">(static)</span>{{/if}}
+                </td>
+                <td>{{value}}</td>
+                <td>
+                  <div class="allocation-cell">
+                    <div class="allocation-track">
+                      <div class="allocation-bar" style="width: {{allocationBarWidth}}%; background: {{color}};"></div>
+                    </div>
+                    <span>{{allocationPct}}</span>
+                  </div>
+                </td>
+                <td>{{costBasis}}</td>
+                <td class="{{gainLossClass}}">{{gainLoss}}</td>
+                <td>{{holdings}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="importModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">Import spreadsheet data</p>
+        <h2 id="importTitle">Portfolio CSV Import</h2>
+      </div>
+      <button id="closeImportButton" class="icon-button" type="button" aria-label="Close import dialog">✕</button>
+    </div>
+
+    <div class="tabs compact-tabs" role="tablist" aria-label="Import source selector">
+      <button id="importTextTab" class="tab-button active" type="button">Paste CSV</button>
+      <button id="importFileTab" class="tab-button" type="button">Upload File</button>
+    </div>
+
+    <div id="importTextPanel" class="import-panel active">
+      <label class="field-label" for="csvInput">CSV content</label>
+      <textarea id="csvInput" rows="12" placeholder="Paste your spreadsheet export here"></textarea>
+    </div>
+
+    <div id="importFilePanel" class="import-panel hidden">
+      <label class="field-label" for="csvFile">CSV file</label>
+      <input id="csvFile" type="file" accept=".csv,text/csv" />
+    </div>
+
+    <div class="modal-footer">
+      <div>
+        <span id="importStatusPill" class="status-pill ok">Ready</span>
+        <span id="importStatus">Choose a CSV source to import.</span>
+      </div>
+      <button id="doImportButton" class="button button-primary" type="button">Import Portfolio</button>
+    </div>
+  </div>
+</div>

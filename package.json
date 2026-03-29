@@ -1,0 +1,25 @@
+{
+  "name": "portfolio-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portfolio dashboard refactored to a Node.js + TypeScript + Handlebars app",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc && shx rm -rf dist/views dist/public && shx mkdir -p dist/views dist/public && shx cp -r views/. dist/views && shx cp -r public/. dist/public",
+    "prestart": "npm run build",
+    "start": "node dist/server.js",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-handlebars": "^8.0.1",
+    "yahoo-finance2": "^3.14.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.10",
+    "shx": "^0.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
