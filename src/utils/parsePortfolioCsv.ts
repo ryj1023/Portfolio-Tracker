@@ -7,6 +7,33 @@ interface ParsedPortfolioCsv {
   summaryData: SummaryData;
 }
 
+const SECTION_HEADER_ALIASES: Array<[string, string]> = [
+  ['Oil & Gas', 'Oil & Gas'],
+  ['Oil and Gas', 'Oil & Gas'],
+  ['Energy Services', 'Energy Services'],
+  ['Energy Service', 'Energy Services'],
+  ['Oil Tankers', 'Oil Tankers'],
+  ['Oil Tanker', 'Oil Tankers'],
+  ['Coal', 'Coal'],
+  ['Steel/Iron Ore', 'Steel/Iron Ore'],
+  ['Steel Iron Ore', 'Steel/Iron Ore'],
+  ['Dry Bulk', 'Dry Bulk'],
+  ['Uranium', 'Uranium'],
+  ['PGM Miners', 'PGM Miners'],
+  ['Precious Metals', 'Precious Metals'],
+  ['Gold & Silver Miners and Royalty', 'Gold & Silver Miners and Royalty'],
+  ['Gold and Silver Miners and Royalty', 'Gold & Silver Miners and Royalty'],
+  ['Lithium/Base Metals', 'Lithium/Base Metals'],
+  ['Lithium Base Metals', 'Lithium/Base Metals'],
+  ['Fertilizers', 'Fertilizers'],
+  ['Copper', 'Copper'],
+  ['Other Stocks', 'Other Stocks'],
+  ['Crypto', 'Crypto'],
+  ['Home Equity', 'Home Equity'],
+  ['Cash', 'Cash'],
+  ['Other', 'Other']
+];
+
 function normalizeSectionText(value: string): string {
   return value
     .toLowerCase()
@@ -14,6 +41,23 @@ function normalizeSectionText(value: string): string {
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function detectSectionHeader(value: string): string | null {
+  const normalizedValue = normalizeSectionText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  for (const [alias, section] of SECTION_HEADER_ALIASES) {
+    const normalizedAlias = normalizeSectionText(alias);
+    if (normalizedValue === normalizedAlias || normalizedValue.startsWith(`${normalizedAlias} `)) {
+      return section;
+    }
+  }
+
+  return null;
 }
 
 function splitCsvLine(line: string): string[] {
@@ -91,8 +135,11 @@ export function parsePortfolioCsv(csv: string): ParsedPortfolioCsv {
   for (const row of rows) {
     const [columnA = '', columnB = '', columnC = '', columnD = '', , columnF = '', columnG = ''] = row;
     const normalizedA = normalizeSectionText(columnA);
+    const detectedSection = !isTicker(columnB) ? detectSectionHeader(columnA) : null;
 
-    if (normalizedA && !isTicker(columnB) && !columnC.trim() && !columnD.trim()) {
+    if (detectedSection) {
+      section = detectedSection;
+    } else if (normalizedA && !isTicker(columnB) && !columnC.trim() && !columnD.trim()) {
       for (const [keyword, mappedSection] of Object.entries(SECTOR_MAP)) {
         if (normalizedA.includes(normalizeSectionText(keyword))) {
           section = mappedSection;
