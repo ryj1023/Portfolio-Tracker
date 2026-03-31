@@ -396,6 +396,38 @@
     }
   }
 
+  async function refreshSheet() {
+    const refreshButton = getElement('refreshSheetButton');
+    refreshButton.disabled = true;
+    getElement('sheetIcon').classList.add('spin');
+    setStatus('main', 'loading', 'Refreshing portfolio data from Google Sheets…');
+
+    try {
+      const response = await fetch('/api/sheet/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lookback: commodityLookback })
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.message || 'Unable to refresh Google Sheet data.');
+      }
+
+      Object.assign(state, payload.state);
+      renderViewModel(payload.viewModel);
+      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
+      if (getElement('tab-charts').classList.contains('active')) {
+        drawCharts();
+      }
+      setStatus('main', 'ok', `Google Sheet synced ${new Date().toLocaleTimeString()}.`);
+    } catch (error) {
+      setStatus('main', 'error', error instanceof Error ? error.message : 'Unable to refresh Google Sheet data.');
+    } finally {
+      refreshButton.disabled = false;
+      getElement('sheetIcon').classList.remove('spin');
+    }
+  }
+
   async function importPortfolio() {
     setStatus('import', 'loading', 'Importing CSV through the Node backend…');
 
@@ -433,6 +465,7 @@
   document.querySelectorAll('.tab-button[data-tab]').forEach((button) => {
     button.addEventListener('click', () => showTab(button.dataset.tab));
   });
+  getElement('refreshSheetButton').addEventListener('click', refreshSheet);
   getElement('refreshPricesButton').addEventListener('click', refreshPrices);
   getElement('openImportButton').addEventListener('click', openImportModal);
   getElement('closeImportButton').addEventListener('click', closeImportModal);

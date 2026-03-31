@@ -6,6 +6,10 @@
       <p class="subtitle">Node.js handles price refreshes, CSV imports, and the portfolio snapshot rendered into Handlebars.</p>
     </div>
     <div class="toolbar">
+      <button id="refreshSheetButton" class="button button-secondary" type="button">
+        <span id="sheetIcon">⟳</span>
+        Refresh Sheet
+      </button>
       <button id="refreshPricesButton" class="button button-secondary" type="button">
         <span id="rfIcon">↻</span>
         Refresh Prices
@@ -46,7 +50,7 @@
 
     <div class="status-row">
       <span id="statusPill" class="status-pill ok">Ready</span>
-      <span id="statusText">Server-rendered data loaded.</span>
+      <span id="statusText">Google Sheet-backed portfolio loaded.</span>
     </div>
 
     <div id="tab-holdings" class="tab-panel active">

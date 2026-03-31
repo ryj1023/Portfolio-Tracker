@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
 import { engine } from 'express-handlebars';
 import { COMMODITY_RATIO_SYMBOLS } from './data/portfolioData';
+import { fetchGoogleSheetCsv } from './services/googleSheetService';
 import { PortfolioStore } from './services/portfolioStore';
 import { fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
@@ -22,6 +24,15 @@ const store = new PortfolioStore();
 const port = Number(process.env.PORT ?? 3000);
 const projectRoot = path.resolve(__dirname, '..');
 
+async function refreshPortfolioFromGoogleSheet() {
+  const csv = await fetchGoogleSheetCsv();
+  store.importCsv(csv);
+}
+
+const initialPortfolioLoadPromise = refreshPortfolioFromGoogleSheet().catch((error) => {
+  console.error('Unable to hydrate portfolio from Google Sheet; using bundled defaults instead.', error);
+});
+
 app.engine('hbs', engine({
   extname: '.hbs',
   defaultLayout: 'main'
@@ -35,6 +46,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(projectRoot, 'public')));
 
 async function buildDashboardPayload(commodityLookback: string) {
+  await initialPortfolioLoadPromise;
   const snapshot = store.getSnapshot();
   const commodityTickers = COMMODITY_RATIO_SYMBOLS
     .map((commodity) => commodity.yahooTicker)
@@ -79,6 +91,17 @@ app.post('/api/import', async (request, response, next) => {
     }
 
     store.importCsv(csv);
+    const payload = await buildDashboardPayload(commodityLookback);
+    response.json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/sheet/refresh', async (request, response, next) => {
+  try {
+    const commodityLookback = parseCommodityLookback(request.body.lookback);
+    await refreshPortfolioFromGoogleSheet();
     const payload = await buildDashboardPayload(commodityLookback);
     response.json(payload);
   } catch (error) {

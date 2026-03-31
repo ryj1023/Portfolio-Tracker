@@ -10,6 +10,16 @@ This dashboard now runs as a Node.js + TypeScript + Handlebars application.
 - `npm run build` — compile the server to `dist/`
 - `npm start` — run the compiled app
 
+## Local config
+
+- Create a local `.env` file and set `GOOGLE_SHEET_URL` to your sheet URL.
+- `.env` and other local env files are ignored by git.
+- Example:
+
+```env
+GOOGLE_SHEET_URL=https://docs.google.com/spreadsheets/d/<your-sheet-id>
+```
+
 ## Architecture
 
 - `src/server.ts` — Express server and API routes
@@ -26,3 +36,4 @@ This dashboard now runs as a Node.js + TypeScript + Handlebars application.
 - `GET /` — render the dashboard page
 - `GET /api/prices` — refresh the current dashboard snapshot with latest prices
 - `POST /api/import` — import CSV payloads with `{ "csv": "..." }`
+- `POST /api/sheet/refresh` — reload the portfolio snapshot from `GOOGLE_SHEET_URL`
