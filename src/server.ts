@@ -65,6 +65,7 @@ async function buildDashboardPayload(commodityLookback: string) {
 
 app.get('/', async (request, response, next) => {
   try {
+    await refreshPortfolioFromGoogleSheet();
     const { viewModel } = await buildDashboardPayload(parseCommodityLookback(request.query.lookback));
     response.render('home', viewModel);
   } catch (error) {
