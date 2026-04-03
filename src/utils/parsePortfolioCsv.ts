@@ -43,6 +43,10 @@ function normalizeSectionText(value: string): string {
     .trim();
 }
 
+function staticItemKey(section: string, name: string): string {
+  return `${normalizeSectionText(section)}::${normalizeSectionText(name)}`;
+}
+
 function detectSectionHeader(value: string): string | null {
   const normalizedValue = normalizeSectionText(value);
 
@@ -100,28 +104,62 @@ function isTicker(raw: string): boolean {
   return /^[A-Z][A-Z0-9.\-]{1,7}$/.test(raw);
 }
 
-function isStaticPreciousMetalsRow(section: string, name: string, ticker: string, shares: string, value: number): boolean {
-  if (section !== 'Precious Metals' || !name || ticker.trim() || shares.trim() || !(value > 0)) {
-    return false;
+function normalizeStaticPreciousMetalsName(name: string): string | null {
+  const lowerName = name.toLowerCase();
+
+  if (lowerName.includes('physical gold')) {
+    return 'Physical Gold (3.47 oz)';
   }
 
-  const lowerName = name.toLowerCase();
-  return lowerName.includes('physical gold')
-    || lowerName.includes('physical silver')
-    || lowerName.includes('physical platinum')
-    || lowerName.includes('valuted gold')
-    || lowerName.includes('valuted silver')
-    || lowerName.includes('vaulted gold')
-    || lowerName.includes('vaulted silver');
+  if (lowerName.includes('physical silver') || lowerName.includes('physcial silver')) {
+    return 'Physical Silver (183.94 oz)';
+  }
+
+  if (lowerName.includes('physical platinum')) {
+    return 'Physical Platinum (3.43 oz)';
+  }
+
+  if (lowerName.includes('valuted gold') || lowerName.includes('vaulted gold')) {
+    return 'Vaulted Gold';
+  }
+
+  if (lowerName.includes('valuted silver') || lowerName.includes('vaulted silver')) {
+    return 'Vaulted Silver';
+  }
+
+  return null;
+}
+
+function parseStaticPreciousMetalsRow(section: string, name: string, ticker: string, value: number): StaticItem | null {
+  if (section !== 'Precious Metals' || !(value > 0)) {
+    return null;
+  }
+
+  const normalizedName = normalizeStaticPreciousMetalsName(name);
+  if (!normalizedName) {
+    return null;
+  }
+
+  const normalizedTicker = ticker.trim().toUpperCase();
+  if (normalizedTicker && !['GC=F', 'SI=F', 'PL=F', 'XAUUSD', 'XAGUSD', 'XPTUSD'].includes(normalizedTicker)) {
+    return null;
+  }
+
+  return {
+    section,
+    name: normalizedName,
+    value
+  };
 }
 
 export function mergeStaticItems(base: StaticItem[], imported: StaticItem[]): StaticItem[] {
-  const importedSections = new Set(imported.map((item) => item.section));
+  const importedItemsByKey = new Map(imported.map((item) => [staticItemKey(item.section, item.name), { ...item }]));
+
   return [
     ...base
-      .filter((item) => !importedSections.has(item.section))
+      .filter((item) => !importedItemsByKey.has(staticItemKey(item.section, item.name)))
       .map((item) => ({ ...item })),
-    ...imported.map((item) => ({ ...item }))
+    ...importedItemsByKey.values()
   ];
 }
 
@@ -149,7 +187,13 @@ export function parsePortfolioCsv(csv: string): ParsedPortfolioCsv {
     }
 
     const shares = parseNumber(columnC);
-    const cost = parseNumber(columnD);
+    const currentValue = parseNumber(columnD);
+    const staticPreciousMetalItem = parseStaticPreciousMetalsRow(section, columnA, columnB, currentValue);
+
+    if (staticPreciousMetalItem) {
+      staticItems.push(staticPreciousMetalItem);
+      continue;
+    }
 
     if (isTicker(columnB) && shares > 0) {
       holdings.push({
@@ -157,20 +201,15 @@ export function parsePortfolioCsv(csv: string): ParsedPortfolioCsv {
         name: columnA,
         ticker: columnB,
         shares,
-        cost: Number.isFinite(cost) ? cost : 0,
+        currentValue: Number.isFinite(currentValue) ? currentValue : 0,
         pb: null,
         note: columnG
       });
       continue;
     }
 
-    if (isStaticPreciousMetalsRow(section, columnA, columnB, columnC, cost)) {
-      staticItems.push({ section, name: columnA, value: cost });
-      continue;
-    }
-
-    if (columnA === 'Net Worth' && cost > 0) {
-      summaryData.netWorth = cost;
+    if (columnA === 'Net Worth' && currentValue > 0) {
+      summaryData.netWorth = currentValue;
     }
   }
 

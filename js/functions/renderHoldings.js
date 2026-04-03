@@ -47,7 +47,7 @@
       html += '<div class="sec">'
         + '<div class="sechdr"><span class="badge" style="background:' + color + '22;color:' + color + ';border:1px solid ' + color + '44">' + section + '</span>'
         + '<span class="mu" style="font-size:.7rem">$' + sectionValue.toLocaleString('en-US', { maximumFractionDigits: 0 }) + '</span></div>'
-        + '<table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Cost Basis</th><th>Price</th><th>Mkt Value</th><th>Gain/Loss</th><th>Day Chg</th><th>P/B</th></tr></thead>'
+        + '<table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Cost Basis</th><th>Price</th><th>Gain/Loss</th><th>Day Chg</th><th>P/B</th></tr></thead>'
         + '<tbody>' + rows + '</tbody></table></div>';
     });
     const staticSections = [];

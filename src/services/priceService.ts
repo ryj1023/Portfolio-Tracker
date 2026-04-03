@@ -22,9 +22,6 @@ interface YahooQuote {
   symbol?: string;
   shortName?: string;
   regularMarketPrice?: number;
-  regularMarketPreviousClose?: number;
-  regularMarketChange?: number;
-  regularMarketChangePercent?: number;
   dividendYield?: number;
   trailingAnnualDividendYield?: number;
 }
@@ -48,7 +45,7 @@ function isYahooQuote(value: unknown): value is YahooQuote {
 }
 
 function emptyQuote(): PriceQuote {
-  return { price: null, prev: null, change: null, changePct: null, priceToBook: null, dividendYield: null, shortName: null };
+  return { price: null, priceToBook: null, dividendYield: null, shortName: null };
 }
 
 function normalizeNumber(value: unknown): number | null {
@@ -96,15 +93,8 @@ function toQuote(quote: unknown, quoteSummary?: unknown): PriceQuote {
     ?? normalizeYieldPercent(quote.trailingAnnualDividendYield);
 
   const price = Number.isFinite(quote.regularMarketPrice) ? quote.regularMarketPrice ?? null : null;
-  const prev = Number.isFinite(quote.regularMarketPreviousClose) ? quote.regularMarketPreviousClose ?? null : null;
-  const change = Number.isFinite(quote.regularMarketChange)
-    ? quote.regularMarketChange ?? null
-    : (price != null && prev != null ? price - prev : null);
-  const changePct = Number.isFinite(quote.regularMarketChangePercent)
-    ? quote.regularMarketChangePercent ?? null
-    : (change != null && prev ? (change / prev) * 100 : null);
 
-  return { price, prev, change, changePct, priceToBook, dividendYield, shortName: quote.shortName ?? null };
+  return { price, priceToBook, dividendYield, shortName: quote.shortName ?? null };
 }
 
 function isYahooChartResult(value: unknown): value is YahooChartResult {

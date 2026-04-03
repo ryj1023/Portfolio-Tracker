@@ -6,10 +6,6 @@
       <p class="subtitle">Node.js handles price refreshes, CSV imports, and the portfolio snapshot rendered into Handlebars.</p>
     </div>
     <div class="toolbar">
-      <button id="refreshSheetButton" class="button button-secondary" type="button">
-        <span id="sheetIcon">⟳</span>
-        Refresh Sheet
-      </button>
       <button id="refreshPricesButton" class="button button-secondary" type="button">
         <span id="rfIcon">↻</span>
         Refresh Prices
@@ -22,14 +18,6 @@
     <article class="stat-card">
       <span class="stat-label">Total Value</span>
       <strong class="stat-value neu" id="sTotal">{{summary.totalValue}}</strong>
-    </article>
-    <article class="stat-card">
-      <span class="stat-label">Day Change</span>
-      <strong class="stat-value {{summary.dayChangeClass}}" id="sDay">{{summary.dayChange}}</strong>
-    </article>
-    <article class="stat-card">
-      <span class="stat-label">Total Gain/Loss</span>
-      <strong class="stat-value {{summary.totalGainLossClass}}" id="sGL">{{summary.totalGainLoss}}</strong>
     </article>
     <article class="stat-card compact">
       <span class="stat-label">Equities</span>
@@ -50,7 +38,7 @@
 
     <div class="status-row">
       <span id="statusPill" class="status-pill ok">Ready</span>
-      <span id="statusText">Google Sheet-backed portfolio loaded.</span>
+      <span id="statusText">Server-rendered data loaded.</span>
     </div>
 
     <div id="tab-holdings" class="tab-panel active">
@@ -67,11 +55,8 @@
                   <th>Ticker</th>
                   <th>Name</th>
                   <th>Shares</th>
-                  <th>Cost Basis</th>
+                  <th>Current Value</th>
                   <th>Price</th>
-                  <th>Mkt Value</th>
-                  <th>Gain/Loss</th>
-                  <th>Day Chg</th>
                   <th>P/B</th>
                   <th>Div Yield</th>
                 </tr>
@@ -85,17 +70,8 @@
                       {{#if note}}<div class="note">{{note}}</div>{{/if}}
                     </td>
                     <td>{{shares}}</td>
-                    <td>{{costBasis}}</td>
+                    <td>{{currentValue}}</td>
                     <td>{{price}}</td>
-                    <td>{{marketValue}}</td>
-                    <td>
-                      {{#if gainLossBadge}}
-                        <span class="badge {{gainLossClass}}">{{gainLossBadge}}</span>
-                      {{else}}
-                        <span class="muted">—</span>
-                      {{/if}}
-                    </td>
-                    <td class="{{dayChangeClass}}">{{dayChange}}</td>
                     <td class="{{pbClass}}">{{pb}}</td>
                     <td class="{{dividendYieldClass}}">{{dividendYield}}</td>
                   </tr>
@@ -153,7 +129,6 @@
         <article class="chart-card"><h2>Allocation by Sector</h2><canvas id="cPie"></canvas></article>
         <article class="chart-card"><h2>Top Holdings</h2><canvas id="cTop"></canvas></article>
         <article class="chart-card"><h2>Price-to-Book</h2><canvas id="cPB"></canvas></article>
-        <article class="chart-card"><h2>Gain / Loss %</h2><canvas id="cGL"></canvas></article>
       </div>
     </div>
 
@@ -165,8 +140,6 @@
               <th>Sector</th>
               <th>Value</th>
               <th>Allocation</th>
-              <th>Cost Basis</th>
-              <th>Gain/Loss</th>
               <th>Holdings</th>
             </tr>
           </thead>
@@ -187,8 +160,6 @@
                     <span>{{allocationPct}}</span>
                   </div>
                 </td>
-                <td>{{costBasis}}</td>
-                <td class="{{gainLossClass}}">{{gainLoss}}</td>
                 <td>{{holdings}}</td>
               </tr>
             {{/each}}

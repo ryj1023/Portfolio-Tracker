@@ -3,7 +3,7 @@ export interface Holding {
   name: string;
   ticker: string;
   shares: number;
-  cost: number;
+  currentValue: number;
   pb: number | null;
   note: string;
 }
@@ -20,9 +20,6 @@ export interface SummaryData {
 
 export interface PriceQuote {
   price: number | null;
-  prev: number | null;
-  change: number | null;
-  changePct: number | null;
   priceToBook: number | null;
   dividendYield: number | null;
   shortName?: string | null;
@@ -54,13 +51,9 @@ export interface HoldingRowViewModel {
   name: string;
   note: string;
   shares: string;
-  costBasis: string;
+  currentValue: string;
   price: string;
   marketValue: string;
-  gainLossBadge: string | null;
-  gainLossClass: string | null;
-  dayChange: string;
-  dayChangeClass: string | null;
   pb: string;
   pbClass: string | null;
   dividendYield: string;
@@ -110,10 +103,6 @@ export interface SectionViewModel {
 
 export interface SummaryViewModel {
   totalValue: string;
-  dayChange: string;
-  dayChangeClass: string;
-  totalGainLoss: string;
-  totalGainLossClass: string;
   equities: number;
   sectors: number;
 }
@@ -123,9 +112,6 @@ export interface SectorViewModel {
   color: string;
   value: string;
   allocationPct: string;
-  costBasis: string;
-  gainLoss: string;
-  gainLossClass: string;
   holdings: number;
   isStatic: boolean;
   allocationBarWidth: number;

@@ -31,12 +31,6 @@
 
   function renderSummary(summary) {
     getElement('sTotal').textContent = summary.totalValue;
-    const dayElement = getElement('sDay');
-    dayElement.textContent = summary.dayChange;
-    dayElement.className = `stat-value ${summary.dayChangeClass}`;
-    const gainElement = getElement('sGL');
-    gainElement.textContent = summary.totalGainLoss;
-    gainElement.className = `stat-value ${summary.totalGainLossClass}`;
     getElement('sCnt').textContent = summary.equities;
     getElement('sSec').textContent = summary.sectors;
   }
@@ -80,11 +74,8 @@
                 <th>Ticker</th>
                 <th>Name</th>
                 <th>Shares</th>
-                <th>Cost Basis</th>
+                <th>Current Value</th>
                 <th>Price</th>
-                <th>Mkt Value</th>
-                <th>Gain/Loss</th>
-                <th>Day Chg</th>
                 <th>P/B</th>
                 <th>Div Yield</th>
               </tr>
@@ -98,11 +89,8 @@
                     ${row.note ? `<div class="note">${escapeHtml(row.note)}</div>` : ''}
                   </td>
                   <td>${escapeHtml(row.shares)}</td>
-                  <td>${escapeHtml(row.costBasis)}</td>
+                  <td>${escapeHtml(row.currentValue)}</td>
                   <td>${escapeHtml(row.price)}</td>
-                  <td>${escapeHtml(row.marketValue)}</td>
-                  <td>${row.gainLossBadge ? `<span class="badge ${row.gainLossClass}">${escapeHtml(row.gainLossBadge)}</span>` : '<span class="muted">—</span>'}</td>
-                  <td class="${row.dayChangeClass || 'muted'}">${escapeHtml(row.dayChange)}</td>
                   <td class="${row.pbClass || 'muted'}">${escapeHtml(row.pb)}</td>
                   <td class="${row.dividendYieldClass || 'muted'}">${escapeHtml(row.dividendYield)}</td>
                 </tr>
@@ -154,8 +142,6 @@
               <th>Sector</th>
               <th>Value</th>
               <th>Allocation</th>
-              <th>Cost Basis</th>
-              <th>Gain/Loss</th>
               <th>Holdings</th>
             </tr>
           </thead>
@@ -176,8 +162,6 @@
                     <span>${escapeHtml(sector.allocationPct)}</span>
                   </div>
                 </td>
-                <td>${escapeHtml(sector.costBasis)}</td>
-                <td class="${sector.gainLossClass}">${escapeHtml(sector.gainLoss)}</td>
                 <td>${escapeHtml(String(sector.holdings))}</td>
               </tr>
             `).join('')}
@@ -269,7 +253,7 @@
 
   function holdingValue(holding) {
     const price = state.prices[holding.ticker]?.price;
-    return price != null ? price * holding.shares : holding.cost;
+    return price != null ? price * holding.shares : holding.currentValue;
   }
 
   function drawCharts() {
@@ -315,22 +299,6 @@
       plugins: { legend: { display: false } }
     });
 
-    const gainLossHoldings = state.holdings
-      .map((holding) => {
-        const value = holdingValue(holding);
-        return {
-          ticker: holding.ticker,
-          gainLoss: holding.cost ? ((value - holding.cost) / holding.cost) * 100 : 0
-        };
-      })
-      .sort((left, right) => right.gainLoss - left.gainLoss);
-    createChart('cGL', 'bar', gainLossHoldings.map((holding) => holding.ticker), [{
-      data: gainLossHoldings.map((holding) => holding.gainLoss),
-      backgroundColor: gainLossHoldings.map((holding) => holding.gainLoss >= 0 ? '#22c55e99' : '#ef444499'),
-      borderRadius: 8
-    }], {
-      plugins: { legend: { display: false } }
-    });
   }
 
   function openImportModal() {
@@ -396,38 +364,6 @@
     }
   }
 
-  async function refreshSheet() {
-    const refreshButton = getElement('refreshSheetButton');
-    refreshButton.disabled = true;
-    getElement('sheetIcon').classList.add('spin');
-    setStatus('main', 'loading', 'Refreshing portfolio data from Google Sheets…');
-
-    try {
-      const response = await fetch('/api/sheet/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lookback: commodityLookback })
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.message || 'Unable to refresh Google Sheet data.');
-      }
-
-      Object.assign(state, payload.state);
-      renderViewModel(payload.viewModel);
-      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
-      if (getElement('tab-charts').classList.contains('active')) {
-        drawCharts();
-      }
-      setStatus('main', 'ok', `Google Sheet synced ${new Date().toLocaleTimeString()}.`);
-    } catch (error) {
-      setStatus('main', 'error', error instanceof Error ? error.message : 'Unable to refresh Google Sheet data.');
-    } finally {
-      refreshButton.disabled = false;
-      getElement('sheetIcon').classList.remove('spin');
-    }
-  }
-
   async function importPortfolio() {
     setStatus('import', 'loading', 'Importing CSV through the Node backend…');
 
@@ -465,7 +401,6 @@
   document.querySelectorAll('.tab-button[data-tab]').forEach((button) => {
     button.addEventListener('click', () => showTab(button.dataset.tab));
   });
-  getElement('refreshSheetButton').addEventListener('click', refreshSheet);
   getElement('refreshPricesButton').addEventListener('click', refreshPrices);
   getElement('openImportButton').addEventListener('click', openImportModal);
   getElement('closeImportButton').addEventListener('click', closeImportModal);
