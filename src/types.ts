@@ -117,12 +117,59 @@ export interface SectorViewModel {
   allocationBarWidth: number;
 }
 
+export interface Transaction {
+  transactionDate: string;
+  postDate: string;
+  description: string;
+  category: string;
+  type: string;
+  amount: number;
+  memo: string;
+}
+
+export interface ExpenseCategory {
+  name: string;
+  total: number;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface ExpenseData {
+  transactions: Transaction[];
+  categories: ExpenseCategory[];
+  totalSpent: number;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export interface TransactionRowViewModel {
+  transactionDate: string;
+  postDate: string;
+  description: string;
+  category: string;
+  categoryColor: string;
+  type: string;
+  amount: string;
+  amountClass: string;
+  memo: string;
+}
+
+export interface ExpenseViewModel {
+  categories: ExpenseCategory[];
+  transactions: TransactionRowViewModel[];
+  totalSpent: string;
+  transactionCount: number;
+  dateRange: string;
+}
+
 export interface ClientState {
   holdings: Holding[];
   staticItems: StaticItem[];
   summaryData: SummaryData;
   prices: PriceMap;
   colors: Record<string, string>;
+  expenses?: ExpenseData;
 }
 
 export interface DashboardViewModel {
@@ -131,5 +178,6 @@ export interface DashboardViewModel {
   sections: SectionViewModel[];
   sectors: SectorViewModel[];
   commodityRatios: CommodityRatiosViewModel;
+  expenses: ExpenseViewModel;
   initialStateJson: string;
 }

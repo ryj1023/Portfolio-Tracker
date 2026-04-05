@@ -5,6 +5,7 @@ import { engine } from 'express-handlebars';
 import { COMMODITY_RATIO_SYMBOLS } from './data/portfolioData';
 import { fetchGoogleSheetCsv } from './services/googleSheetService';
 import { PortfolioStore } from './services/portfolioStore';
+import { ExpenseStore } from './services/expenseStore';
 import { fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
 
@@ -21,6 +22,7 @@ function parseCommodityLookback(value: unknown): string {
 
 const app = express();
 const store = new PortfolioStore();
+const expenseStore = new ExpenseStore();
 const port = Number(process.env.PORT ?? 3000);
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -31,6 +33,10 @@ async function refreshPortfolioFromGoogleSheet() {
 
 const initialPortfolioLoadPromise = refreshPortfolioFromGoogleSheet().catch((error) => {
   console.error('Unable to hydrate portfolio from Google Sheet; using bundled defaults instead.', error);
+});
+
+const expenseStoreInitPromise = expenseStore.initialize().catch((error) => {
+  console.error('Unable to load expense data; starting with empty expenses.', error);
 });
 
 app.engine('hbs', engine({
@@ -46,8 +52,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(projectRoot, 'public')));
 
 async function buildDashboardPayload(commodityLookback: string) {
-  await initialPortfolioLoadPromise;
+  await Promise.all([initialPortfolioLoadPromise, expenseStoreInitPromise]);
   const snapshot = store.getSnapshot();
+  const expenseData = expenseStore.getExpenseData();
   const commodityTickers = COMMODITY_RATIO_SYMBOLS
     .map((commodity) => commodity.yahooTicker)
     .filter((ticker): ticker is string => ticker != null);
@@ -58,8 +65,8 @@ async function buildDashboardPayload(commodityLookback: string) {
     fetchTickerHistory(commodityTickers, COMMODITY_LOOKBACK_DAYS[commodityLookback])
   ]);
   return {
-    state: buildClientState(snapshot, prices),
-    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback)
+    state: buildClientState(snapshot, prices, expenseData),
+    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback, expenseData)
   };
 }
 
@@ -92,6 +99,23 @@ app.post('/api/import', async (request, response, next) => {
     }
 
     store.importCsv(csv);
+    const payload = await buildDashboardPayload(commodityLookback);
+    response.json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/expenses/import', async (request, response, next) => {
+  try {
+    const csv = typeof request.body.csv === 'string' ? request.body.csv : '';
+    const commodityLookback = parseCommodityLookback(request.body.lookback);
+    if (!csv.trim()) {
+      response.status(400).json({ message: 'CSV input is required.' });
+      return;
+    }
+
+    await expenseStore.importCsv(csv);
     const payload = await buildDashboardPayload(commodityLookback);
     response.json(payload);
   } catch (error) {

@@ -4,6 +4,7 @@ import {
   CommodityLookbackOptionViewModel,
   CommodityRatiosViewModel,
   DashboardViewModel,
+  ExpenseData,
   HistoricalPriceMap,
   Holding,
   HoldingRowViewModel,
@@ -12,6 +13,7 @@ import {
   SectorViewModel,
   SectionViewModel
 } from '../types';
+import { buildExpenseViewModel } from './buildExpenseViewModel';
 
 const COMMODITY_LOOKBACK_LABELS: Record<string, string> = {
   all: 'All time',
@@ -284,13 +286,14 @@ function buildCommodityRatios(prices: PriceMap, history: HistoricalPriceMap, loo
   };
 }
 
-export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap): ClientState {
+export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap, expenseData?: ExpenseData): ClientState {
   return {
     holdings: snapshot.holdings,
     staticItems: snapshot.staticItems,
     summaryData: snapshot.summaryData,
     prices,
-    colors: SECTION_COLORS
+    colors: SECTION_COLORS,
+    expenses: expenseData
   };
 }
 
@@ -299,7 +302,8 @@ export function buildDashboardViewModel(
   prices: PriceMap,
   commodityPrices: PriceMap,
   commodityHistory: HistoricalPriceMap,
-  commodityLookback: string
+  commodityLookback: string,
+  expenseData?: ExpenseData
 ): DashboardViewModel {
   let totalValue = 0;
   const commodityRatios = buildCommodityRatios(commodityPrices, commodityHistory, commodityLookback);
@@ -314,8 +318,16 @@ export function buildDashboardViewModel(
   });
 
   const displayTotal = snapshot.summaryData.netWorth ?? totalValue;
-  const clientState = buildClientState(snapshot, prices);
+  const clientState = buildClientState(snapshot, prices, expenseData);
   const sectorCount = new Set([...snapshot.holdings.map((holding) => holding.section), ...snapshot.staticItems.map((item) => item.section)]).size;
+
+  const expenses = expenseData ? buildExpenseViewModel(expenseData) : {
+    categories: [],
+    transactions: [],
+    totalSpent: '$0.00',
+    transactionCount: 0,
+    dateRange: 'No transactions'
+  };
 
   return {
     pageTitle: 'Portfolio Dashboard',
@@ -327,6 +339,7 @@ export function buildDashboardViewModel(
     sections: buildSections(snapshot, prices),
     sectors: buildSectors(snapshot, prices),
     commodityRatios,
+    expenses,
     initialStateJson: JSON.stringify(clientState).replace(/</g, '\u003c')
   };
 }
