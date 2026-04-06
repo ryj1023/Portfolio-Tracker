@@ -308,9 +308,24 @@
     createChart('cPB', 'bar', pbHoldings.map((holding) => holding.ticker), [{
       data: pbHoldings.map((holding) => holding.priceToBook),
       backgroundColor: pbHoldings.map((holding) => holding.priceToBook < 1 ? '#22c55e99' : holding.priceToBook < 2 ? '#facc1599' : '#ef444499'),
-      borderRadius: 8
+      borderRadius: 8,
+      barPercentage: 0.92,
+      categoryPercentage: 0.96
     }], {
-      plugins: { legend: { display: false } }
+      interaction: {
+        mode: 'index',
+        intersect: false,
+        axis: 'x'
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0]?.label ?? '',
+            label: (context) => `Price-to-Book: ${Number(context.parsed.y).toFixed(2)}`
+          }
+        }
+      }
     });
 
   }

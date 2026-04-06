@@ -335,20 +335,25 @@ tbody td {
   gap: 18px;
 }
 
+.chart-card:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
 .chart-card {
   border-radius: 20px;
-  padding: 20px;
-  min-height: 360px;
+  padding: 28px;
+  min-height: 500px;
 }
 
 .chart-card h2 {
-  margin: 0 0 18px;
-  font-size: 1rem;
+  margin: 0 0 24px;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .chart-card canvas {
   width: 100% !important;
-  height: 280px !important;
+  height: 420px !important;
 }
 
 .sector-key {
@@ -484,7 +489,6 @@ tbody td {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  /* height: 450px; */
   height: 800px;
   position: relative;
 }

@@ -306,11 +306,17 @@ export function buildDashboardViewModel(
   expenseData?: ExpenseData
 ): DashboardViewModel {
   let totalValue = 0;
+  let totalAnnualDividends = 0;
   const commodityRatios = buildCommodityRatios(commodityPrices, commodityHistory, commodityLookback);
 
   snapshot.holdings.forEach((holding) => {
     const value = holdingMarketValue(holding, prices) ?? holding.currentValue;
     totalValue += value;
+
+    const dividendYield = prices[holding.ticker]?.dividendYield;
+    if (dividendYield != null && dividendYield > 0) {
+      totalAnnualDividends += value * (dividendYield / 100);
+    }
   });
 
   snapshot.staticItems.forEach((item) => {
@@ -334,7 +340,8 @@ export function buildDashboardViewModel(
     summary: {
       totalValue: formatCurrency(displayTotal),
       equities: snapshot.holdings.length,
-      sectors: sectorCount
+      sectors: sectorCount,
+      annualDividends: formatCurrency(totalAnnualDividends)
     },
     sections: buildSections(snapshot, prices),
     sectors: buildSectors(snapshot, prices),

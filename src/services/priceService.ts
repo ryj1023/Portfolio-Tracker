@@ -86,11 +86,13 @@ function toQuote(quote: unknown, quoteSummary?: unknown): PriceQuote {
   const summary = quoteSummary && typeof quoteSummary === 'object' ? quoteSummary as YahooQuoteSummary : undefined;
   const priceToBook = normalizeNumber(summary?.defaultKeyStatistics?.priceToBook)
     ?? normalizeNumber(summary?.financialData?.priceToBook);
+
   const dividendYield = normalizeYieldPercent(summary?.summaryDetail?.dividendYield)
     ?? normalizeYieldPercent(summary?.summaryDetail?.trailingAnnualDividendYield)
     ?? normalizeYieldPercent(summary?.financialData?.dividendYield)
-    ?? normalizeYieldPercent(quote.dividendYield)
+    ?? quote.dividendYield
     ?? normalizeYieldPercent(quote.trailingAnnualDividendYield);
+
 
   const price = Number.isFinite(quote.regularMarketPrice) ? quote.regularMarketPrice ?? null : null;
 

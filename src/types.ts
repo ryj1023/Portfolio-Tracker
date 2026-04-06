@@ -105,6 +105,7 @@ export interface SummaryViewModel {
   totalValue: string;
   equities: number;
   sectors: number;
+  annualDividends: string;
 }
 
 export interface SectorViewModel {
