@@ -33,12 +33,12 @@
     </article>
   </section>
 
-  <section class="panel">
+  <section class="panel" data-active-tab="{{activeTab}}">
     <div class="tabs" role="tablist" aria-label="Dashboard views">
-      <button class="tab-button active" type="button" data-tab="holdings">Holdings</button>
-      <button class="tab-button" type="button" data-tab="charts">Charts</button>
-      <button class="tab-button" type="button" data-tab="sectors">Sectors</button>
-      <button class="tab-button" type="button" data-tab="expenses">Expenses</button>
+      <button class="tab-button{{#if activeTabs.holdings}} active{{/if}}" type="button" data-tab="holdings">Holdings</button>
+      <button class="tab-button{{#if activeTabs.charts}} active{{/if}}" type="button" data-tab="charts">Charts</button>
+      <button class="tab-button{{#if activeTabs.sectors}} active{{/if}}" type="button" data-tab="sectors">Sectors</button>
+      <button class="tab-button{{#if activeTabs.expenses}} active{{/if}}" type="button" data-tab="expenses">Expenses</button>
     </div>
 
     <div class="status-row">
@@ -46,7 +46,7 @@
       <span id="statusText">Server-rendered data loaded.</span>
     </div>
 
-    <div id="tab-holdings" class="tab-panel active">
+    <div id="tab-holdings" class="tab-panel{{#if activeTabs.holdings}} active{{/if}}">
       {{#each sections}}
         <section class="section-card">
           <div class="section-header">
@@ -129,7 +129,7 @@
       </section>
     </div>
 
-    <div id="tab-charts" class="tab-panel">
+    <div id="tab-charts" class="tab-panel{{#if activeTabs.charts}} active{{/if}}">
       <div class="chart-grid">
         <article class="chart-card"><h2>Allocation by Sector</h2><canvas id="cPie"></canvas></article>
         <article class="chart-card"><h2>Top Holdings</h2><canvas id="cTop"></canvas></article>
@@ -137,7 +137,7 @@
       </div>
     </div>
 
-    <div id="tab-sectors" class="tab-panel">
+    <div id="tab-sectors" class="tab-panel{{#if activeTabs.sectors}} active{{/if}}">
       <div class="table-wrap">
         <table>
           <thead>
@@ -173,7 +173,7 @@
       </div>
     </div>
 
-    <div id="tab-expenses" class="tab-panel">
+    <div id="tab-expenses" class="tab-panel{{#if activeTabs.expenses}} active{{/if}}">
       <div class="expense-toolbar">
         <button id="openExpenseImportButton" class="button button-primary" type="button">Import Expense CSV</button>
       </div>

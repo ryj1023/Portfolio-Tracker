@@ -3,6 +3,7 @@ import {
   ClientState,
   CommodityLookbackOptionViewModel,
   CommodityRatiosViewModel,
+  DashboardTab,
   DashboardViewModel,
   ExpenseData,
   HistoricalPriceMap,
@@ -286,13 +287,14 @@ function buildCommodityRatios(prices: PriceMap, history: HistoricalPriceMap, loo
   };
 }
 
-export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap, expenseData?: ExpenseData): ClientState {
+export function buildClientState(snapshot: PortfolioSnapshot, prices: PriceMap, expenseData: ExpenseData | undefined, activeTab: DashboardTab): ClientState {
   return {
     holdings: snapshot.holdings,
     staticItems: snapshot.staticItems,
     summaryData: snapshot.summaryData,
     prices,
     colors: SECTION_COLORS,
+    activeTab,
     expenses: expenseData
   };
 }
@@ -303,6 +305,7 @@ export function buildDashboardViewModel(
   commodityPrices: PriceMap,
   commodityHistory: HistoricalPriceMap,
   commodityLookback: string,
+  activeTab: DashboardTab,
   expenseData?: ExpenseData
 ): DashboardViewModel {
   let totalValue = 0;
@@ -324,7 +327,7 @@ export function buildDashboardViewModel(
   });
 
   const displayTotal = snapshot.summaryData.netWorth ?? totalValue;
-  const clientState = buildClientState(snapshot, prices, expenseData);
+  const clientState = buildClientState(snapshot, prices, expenseData, activeTab);
   const sectorCount = new Set([...snapshot.holdings.map((holding) => holding.section), ...snapshot.staticItems.map((item) => item.section)]).size;
 
   const expenses = expenseData ? buildExpenseViewModel(expenseData) : {
@@ -337,6 +340,13 @@ export function buildDashboardViewModel(
 
   return {
     pageTitle: 'Portfolio Dashboard',
+    activeTab,
+    activeTabs: {
+      holdings: activeTab === 'holdings',
+      charts: activeTab === 'charts',
+      sectors: activeTab === 'sectors',
+      expenses: activeTab === 'expenses'
+    },
     summary: {
       totalValue: formatCurrency(displayTotal),
       equities: snapshot.holdings.length,

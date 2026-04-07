@@ -7,6 +7,7 @@ import { fetchGoogleSheetCsv } from './services/googleSheetService';
 import { PortfolioStore } from './services/portfolioStore';
 import { ExpenseStore } from './services/expenseStore';
 import { fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
+import { DashboardTab } from './types';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
 
 const COMMODITY_LOOKBACK_DAYS: Record<string, number | null> = {
@@ -18,6 +19,10 @@ const COMMODITY_LOOKBACK_DAYS: Record<string, number | null> = {
 
 function parseCommodityLookback(value: unknown): string {
   return typeof value === 'string' && value in COMMODITY_LOOKBACK_DAYS ? value : 'all';
+}
+
+function parseDashboardTab(value: unknown): DashboardTab {
+  return value === 'charts' || value === 'sectors' || value === 'expenses' ? value : 'holdings';
 }
 
 const app = express();
@@ -51,7 +56,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(projectRoot, 'public')));
 
-async function buildDashboardPayload(commodityLookback: string) {
+async function buildDashboardPayload(commodityLookback: string, activeTab: DashboardTab) {
   await Promise.all([initialPortfolioLoadPromise, expenseStoreInitPromise]);
   const snapshot = store.getSnapshot();
   const expenseData = expenseStore.getExpenseData();
@@ -65,15 +70,18 @@ async function buildDashboardPayload(commodityLookback: string) {
     fetchTickerHistory(commodityTickers, COMMODITY_LOOKBACK_DAYS[commodityLookback])
   ]);
   return {
-    state: buildClientState(snapshot, prices, expenseData),
-    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback, expenseData)
+    state: buildClientState(snapshot, prices, expenseData, activeTab),
+    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback, activeTab, expenseData)
   };
 }
 
 app.get('/', async (request, response, next) => {
   try {
     await refreshPortfolioFromGoogleSheet();
-    const { viewModel } = await buildDashboardPayload(parseCommodityLookback(request.query.lookback));
+    const { viewModel } = await buildDashboardPayload(
+      parseCommodityLookback(request.query.lookback),
+      parseDashboardTab(request.query.tab)
+    );
     response.render('home', viewModel);
   } catch (error) {
     next(error);
@@ -82,7 +90,10 @@ app.get('/', async (request, response, next) => {
 
 app.get('/api/prices', async (request, response, next) => {
   try {
-    const payload = await buildDashboardPayload(parseCommodityLookback(request.query.lookback));
+    const payload = await buildDashboardPayload(
+      parseCommodityLookback(request.query.lookback),
+      parseDashboardTab(request.query.tab)
+    );
     response.json(payload);
   } catch (error) {
     next(error);
@@ -93,13 +104,14 @@ app.post('/api/import', async (request, response, next) => {
   try {
     const csv = typeof request.body.csv === 'string' ? request.body.csv : '';
     const commodityLookback = parseCommodityLookback(request.body.lookback);
+    const activeTab = parseDashboardTab(request.body.tab);
     if (!csv.trim()) {
       response.status(400).json({ message: 'CSV input is required.' });
       return;
     }
 
     store.importCsv(csv);
-    const payload = await buildDashboardPayload(commodityLookback);
+    const payload = await buildDashboardPayload(commodityLookback, activeTab);
     response.json(payload);
   } catch (error) {
     next(error);
@@ -110,13 +122,14 @@ app.post('/api/expenses/import', async (request, response, next) => {
   try {
     const csv = typeof request.body.csv === 'string' ? request.body.csv : '';
     const commodityLookback = parseCommodityLookback(request.body.lookback);
+    const activeTab = parseDashboardTab(request.body.tab);
     if (!csv.trim()) {
       response.status(400).json({ message: 'CSV input is required.' });
       return;
     }
 
     await expenseStore.importCsv(csv);
-    const payload = await buildDashboardPayload(commodityLookback);
+    const payload = await buildDashboardPayload(commodityLookback, activeTab);
     response.json(payload);
   } catch (error) {
     next(error);
@@ -126,8 +139,9 @@ app.post('/api/expenses/import', async (request, response, next) => {
 app.post('/api/sheet/refresh', async (request, response, next) => {
   try {
     const commodityLookback = parseCommodityLookback(request.body.lookback);
+    const activeTab = parseDashboardTab(request.body.tab);
     await refreshPortfolioFromGoogleSheet();
-    const payload = await buildDashboardPayload(commodityLookback);
+    const payload = await buildDashboardPayload(commodityLookback, activeTab);
     response.json(payload);
   } catch (error) {
     next(error);

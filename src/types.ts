@@ -94,6 +94,8 @@ export interface CommodityRatiosViewModel {
   lookbackOptions: CommodityLookbackOptionViewModel[];
 }
 
+export type DashboardTab = 'holdings' | 'charts' | 'sectors' | 'expenses';
+
 export interface SectionViewModel {
   name: string;
   color: string;
@@ -170,11 +172,19 @@ export interface ClientState {
   summaryData: SummaryData;
   prices: PriceMap;
   colors: Record<string, string>;
+  activeTab: DashboardTab;
   expenses?: ExpenseData;
 }
 
 export interface DashboardViewModel {
   pageTitle: string;
+  activeTab: DashboardTab;
+  activeTabs: {
+    holdings: boolean;
+    charts: boolean;
+    sectors: boolean;
+    expenses: boolean;
+  };
   summary: SummaryViewModel;
   sections: SectionViewModel[];
   sectors: SectorViewModel[];

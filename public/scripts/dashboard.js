@@ -1,9 +1,11 @@
 (() => {
   const state = window.__PORTFOLIO__ || { holdings: [], staticItems: [], summaryData: {}, prices: {}, colors: {}, expenses: null };
+  const VALID_TABS = new Set(['holdings', 'charts', 'sectors', 'expenses']);
   const charts = {};
   let importMode = 'text';
   let expenseImportMode = 'text';
   let commodityLookback = 'all';
+  let activeTab = 'holdings';
   let expenseChart = null;
 
   const getElement = (id) => document.getElementById(id);
@@ -40,18 +42,27 @@
     getElement('sTotal').textContent = summary.totalValue;
     getElement('sCnt').textContent = summary.equities;
     getElement('sSec').textContent = summary.sectors;
+    const annualDividendsEl = getElement('sDivs');
+    if (annualDividendsEl) {
+      annualDividendsEl.textContent = summary.annualDividends;
+    }
+  }
+
+  function normalizeTab(value) {
+    return VALID_TABS.has(value) ? value : 'holdings';
+  }
+
+  function dashboardUrl(path) {
+    const url = new URL(path, window.location.origin);
+    url.searchParams.set('lookback', commodityLookback);
+    url.searchParams.set('tab', activeTab);
+    return `${url.pathname}${url.search}`;
   }
 
   function commodityLookbackOptionsMarkup(commodityRatios) {
     return (commodityRatios?.lookbackOptions || []).map((option) => `
       <option value="${escapeHtml(option.value)}" ${option.selected ? 'selected' : ''}>${escapeHtml(option.label)}</option>
     `).join('');
-  }
-
-  function commodityApiUrl(path) {
-    const url = new URL(path, window.location.origin);
-    url.searchParams.set('lookback', commodityLookback);
-    return `${url.pathname}${url.search}`;
   }
 
   function bindCommodityLookbackControl() {
@@ -203,23 +214,40 @@
     if (viewModel.expenses) {
       renderExpenses(viewModel.expenses);
     }
+
+    if (viewModel.activeTab) {
+      showTab(viewModel.activeTab, { updateUrl: false });
+    }
   }
 
-  function showTab(tabName) {
+  function showTab(tabName, { updateUrl = true, historyMode = 'push' } = {}) {
+    activeTab = normalizeTab(tabName);
+    state.activeTab = activeTab;
+
     document.querySelectorAll('.tab-button[data-tab]').forEach((button) => {
-      button.classList.toggle('active', button.dataset.tab === tabName);
+      button.classList.toggle('active', button.dataset.tab === activeTab);
     });
 
     document.querySelectorAll('.tab-panel').forEach((panel) => {
-      panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+      panel.classList.toggle('active', panel.id === `tab-${activeTab}`);
     });
 
-    if (tabName === 'charts') {
+    const panel = document.querySelector('.panel[data-active-tab]');
+    if (panel) {
+      panel.setAttribute('data-active-tab', activeTab);
+    }
+
+    if (activeTab === 'charts') {
       drawCharts();
     }
 
-    if (tabName === 'expenses') {
+    if (activeTab === 'expenses') {
       renderExpenseChart();
+    }
+
+    if (updateUrl) {
+      const method = historyMode === 'replace' ? 'replaceState' : 'pushState';
+      window.history[method]({}, '', dashboardUrl(window.location.pathname));
     }
   }
 
@@ -372,7 +400,7 @@
     setStatus('main', 'loading', 'Fetching fresh prices from the Node backend…');
 
     try {
-      const response = await fetch(commodityApiUrl('/api/prices'));
+      const response = await fetch(dashboardUrl('/api/prices'));
       if (!response.ok) {
         throw new Error('Unable to refresh prices.');
       }
@@ -380,10 +408,7 @@
       const payload = await response.json();
       Object.assign(state, payload.state);
       renderViewModel(payload.viewModel);
-      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
-      if (getElement('tab-charts').classList.contains('active')) {
-        drawCharts();
-      }
+      showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       setStatus('main', 'ok', `Updated ${new Date().toLocaleTimeString()}.`);
     } catch (error) {
       setStatus('main', 'error', error instanceof Error ? error.message : 'Unable to refresh prices.');
@@ -405,7 +430,7 @@
       const response = await fetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv, lookback: commodityLookback })
+        body: JSON.stringify({ csv, lookback: commodityLookback, tab: activeTab })
       });
 
       const payload = await response.json();
@@ -415,10 +440,7 @@
 
       Object.assign(state, payload.state);
       renderViewModel(payload.viewModel);
-      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
-      if (getElement('tab-charts').classList.contains('active')) {
-        drawCharts();
-      }
+      showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       closeImportModal();
       setStatus('main', 'ok', 'Portfolio imported successfully.');
       setStatus('import', 'ok', 'Import complete.');
@@ -670,7 +692,7 @@
       const response = await fetch('/api/expenses/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv, lookback: commodityLookback })
+        body: JSON.stringify({ csv, lookback: commodityLookback, tab: activeTab })
       });
 
       const payload = await response.json();
@@ -680,8 +702,7 @@
 
       Object.assign(state, payload.state);
       renderViewModel(payload.viewModel);
-      window.history.replaceState({}, '', commodityApiUrl(window.location.pathname));
-      renderExpenseChart();
+      showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       populateExpenseFilters();
       closeExpenseImportModal();
       setStatus('main', 'ok', 'Expenses imported successfully.');
@@ -692,7 +713,7 @@
   }
 
   document.querySelectorAll('.tab-button[data-tab]').forEach((button) => {
-    button.addEventListener('click', () => showTab(button.dataset.tab));
+    button.addEventListener('click', () => showTab(button.dataset.tab, { updateUrl: true, historyMode: 'push' }));
   });
   getElement('refreshPricesButton').addEventListener('click', refreshPrices);
   getElement('openImportButton').addEventListener('click', openImportModal);
@@ -721,10 +742,20 @@
   getElement('monthFilter')?.addEventListener('change', filterTransactions);
   getElement('yearFilter')?.addEventListener('change', filterTransactions);
 
-  commodityLookback = new URLSearchParams(window.location.search).get('lookback') || 'all';
+  const searchParams = new URLSearchParams(window.location.search);
+  commodityLookback = searchParams.get('lookback') || 'all';
+  activeTab = normalizeTab(searchParams.get('tab') || state.activeTab);
   bindCommodityLookbackControl();
   populateExpenseFilters();
-  renderExpenseChart();
+  if (activeTab === 'expenses') {
+    renderExpenseChart();
+  }
 
-  showTab('holdings');
+  window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const nextTab = normalizeTab(params.get('tab'));
+    showTab(nextTab, { updateUrl: false });
+  });
+
+  showTab(activeTab, { updateUrl: false });
 })();
