@@ -80,6 +80,14 @@ function holdingMarketValue(holding: Holding, prices: PriceMap): number | null {
   return price != null ? price * holding.shares : null;
 }
 
+function holdingDividendValue(holding: Holding, prices: PriceMap): number {
+  if (Number.isFinite(holding.currentValue) && holding.currentValue > 0) {
+    return holding.currentValue;
+  }
+
+  return holdingMarketValue(holding, prices) ?? 0;
+}
+
 function buildHoldingRow(holding: Holding, prices: PriceMap): HoldingRowViewModel {
   const price = prices[holding.ticker];
   const marketValue = holdingMarketValue(holding, prices);
@@ -318,7 +326,7 @@ export function buildDashboardViewModel(
 
     const dividendYield = prices[holding.ticker]?.dividendYield;
     if (dividendYield != null && dividendYield > 0) {
-      totalAnnualDividends += value * (dividendYield / 100);
+      totalAnnualDividends += holdingDividendValue(holding, prices) * (dividendYield / 100);
     }
   });
 
