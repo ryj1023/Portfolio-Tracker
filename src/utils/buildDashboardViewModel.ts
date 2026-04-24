@@ -81,11 +81,16 @@ function holdingMarketValue(holding: Holding, prices: PriceMap): number | null {
 }
 
 function holdingDividendValue(holding: Holding, prices: PriceMap): number {
+  const marketValue = holdingMarketValue(holding, prices);
+  if (marketValue != null && marketValue > 0) {
+    return marketValue;
+  }
+
   if (Number.isFinite(holding.currentValue) && holding.currentValue > 0) {
     return holding.currentValue;
   }
 
-  return holdingMarketValue(holding, prices) ?? 0;
+  return 0;
 }
 
 function buildHoldingRow(holding: Holding, prices: PriceMap): HoldingRowViewModel {
