@@ -9,6 +9,7 @@ import { ExpenseStore } from './services/expenseStore';
 import { fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
 import { DashboardTab } from './types';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
+import { buildHoldingDetailsViewModel } from './utils/buildHoldingDetailsViewModel';
 
 const COMMODITY_LOOKBACK_DAYS: Record<string, number | null> = {
   all: null,
@@ -75,6 +76,13 @@ async function buildDashboardPayload(commodityLookback: string, activeTab: Dashb
   };
 }
 
+async function buildHoldingDetailsPayload(ticker: string) {
+  await Promise.all([initialPortfolioLoadPromise, expenseStoreInitPromise]);
+  const snapshot = store.getSnapshot();
+  const prices = await fetchPrices(snapshot.holdings);
+  return buildHoldingDetailsViewModel(snapshot, prices, ticker);
+}
+
 app.get('/', async (request, response, next) => {
   try {
     await refreshPortfolioFromGoogleSheet();
@@ -83,6 +91,16 @@ app.get('/', async (request, response, next) => {
       parseDashboardTab(request.query.tab)
     );
     response.render('home', viewModel);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/holding-details/:ticker', async (request, response, next) => {
+  try {
+    await refreshPortfolioFromGoogleSheet();
+    const viewModel = await buildHoldingDetailsPayload(request.params.ticker);
+    response.status(viewModel.holding ? 200 : 404).render('holding-details', viewModel);
   } catch (error) {
     next(error);
   }

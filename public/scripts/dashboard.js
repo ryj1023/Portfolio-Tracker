@@ -209,6 +209,15 @@
     }
   }
 
+  function navigateToRowDestination(row) {
+    const href = row?.dataset.href;
+    if (!href) {
+      return;
+    }
+
+    window.location.assign(href);
+  }
+
   const mainStatus = {
     pill: getElement('statusPill'),
     text: getElement('statusText')
@@ -293,7 +302,7 @@
             </thead>
             <tbody>
               ${section.rows.map((row) => `
-                <tr>
+                <tr${row.ticker ? ` class="detail-row" data-href="/holding-details/${encodeURIComponent(row.ticker)}" tabindex="0" role="link" aria-label="View details for ${escapeHtml(row.ticker)}"` : ''}>
                   <td class="ticker">${row.ticker ? escapeHtml(row.ticker) : '—'}</td>
                   <td data-sort-value="${escapeHtml(row.name)}">
                     <div>${escapeHtml(row.name)}</div>
@@ -945,6 +954,12 @@
     const header = event.target instanceof Element ? event.target.closest('thead th.sortable-column') : null;
     if (header) {
       activateColumnSort(header);
+      return;
+    }
+
+    const row = event.target instanceof Element ? event.target.closest('tbody tr[data-href]') : null;
+    if (row) {
+      navigateToRowDestination(row);
     }
   });
   document.addEventListener('keydown', (event) => {
@@ -959,6 +974,20 @@
 
     event.preventDefault();
     activateColumnSort(header);
+    return;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    const row = event.target instanceof Element ? event.target.closest('tbody tr[data-href]') : null;
+    if (!row) {
+      return;
+    }
+
+    event.preventDefault();
+    navigateToRowDestination(row);
   });
 
   const searchParams = new URLSearchParams(window.location.search);

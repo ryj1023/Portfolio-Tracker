@@ -1,0 +1,101 @@
+<div class="shell">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Server-rendered holding details</p>
+      {{#if holding}}
+        <h1>{{holding.name}} ({{holding.ticker}})</h1>
+        <p class="subtitle">Detailed position snapshot for this holding, rendered on the server.</p>
+      {{else}}
+        <h1>Holding not found</h1>
+        <p class="subtitle">We couldn’t find a tracked holding for ticker {{requestedTicker}}.</p>
+      {{/if}}
+    </div>
+    <div class="toolbar">
+      <a class="button button-secondary" href="{{backHref}}">← Back to dashboard</a>
+    </div>
+  </header>
+
+  {{#if holding}}
+    <section class="stats-grid details-summary-grid">
+      <article class="stat-card compact">
+        <span class="stat-label">Ticker</span>
+        <strong class="stat-value neu">{{holding.ticker}}</strong>
+      </article>
+      <article class="stat-card compact">
+        <span class="stat-label">Sector</span>
+        <strong class="stat-value">{{holding.section}}</strong>
+      </article>
+      <article class="stat-card compact">
+        <span class="stat-label">Live Price</span>
+        <strong class="stat-value">{{holding.livePrice}}</strong>
+      </article>
+      <article class="stat-card compact">
+        <span class="stat-label">Market Value</span>
+        <strong class="stat-value pos">{{holding.marketValue}}</strong>
+      </article>
+    </section>
+
+    <section class="panel details-panel">
+      <div class="details-grid">
+        <article class="details-card">
+          <div class="details-meta">
+            <span class="section-badge" style="background: {{holding.sectionColor}}22; color: {{holding.sectionColor}}; border-color: {{holding.sectionColor}}44;">{{holding.section}}</span>
+          </div>
+          <h2>Position overview</h2>
+          <div class="details-stat-grid">
+            <div class="details-stat">
+              <span class="details-stat-label">Shares</span>
+              <strong class="details-stat-value">{{holding.shares}}</strong>
+            </div>
+            <div class="details-stat">
+              <span class="details-stat-label">Snapshot Value</span>
+              <strong class="details-stat-value">{{holding.snapshotValue}}</strong>
+            </div>
+            <div class="details-stat">
+              <span class="details-stat-label">Price to Book</span>
+              <strong class="details-stat-value">{{holding.priceToBook}}</strong>
+            </div>
+            <div class="details-stat">
+              <span class="details-stat-label">Dividend Yield</span>
+              <strong class="details-stat-value">{{holding.dividendYield}}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="details-card">
+          <h3>Thesis note</h3>
+          {{#if holding.note}}
+            <p class="details-note">{{holding.note}}</p>
+          {{else}}
+            <p class="details-note muted">No note is currently saved for this holding.</p>
+          {{/if}}
+        </article>
+
+        <article class="details-card">
+          <h3>Related holdings</h3>
+          {{#if relatedHoldings.length}}
+            <ul class="details-list">
+              {{#each relatedHoldings}}
+                <li>
+                  <a href="{{href}}">
+                    <span>{{name}}</span>
+                    <strong>{{ticker}}</strong>
+                  </a>
+                </li>
+              {{/each}}
+            </ul>
+          {{else}}
+            <p class="details-empty">No other tracked holdings are in this sector.</p>
+          {{/if}}
+        </article>
+      </div>
+    </section>
+  {{else}}
+    <section class="panel details-panel">
+      <article class="details-card">
+        <h2>Unavailable ticker</h2>
+        <p class="details-note muted">The requested ticker isn’t part of the tracked holdings snapshot right now. Return to the dashboard and pick a holding row from the holdings table.</p>
+      </article>
+    </section>
+  {{/if}}
+</div>

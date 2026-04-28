@@ -68,7 +68,7 @@
               </thead>
               <tbody>
                 {{#each rows}}
-                  <tr>
+                  <tr{{#if ticker}} class="detail-row" data-href="/holding-details/{{ticker}}" tabindex="0" role="link" aria-label="View details for {{ticker}}"{{/if}}>
                     <td class="ticker">{{#if ticker}}{{ticker}}{{else}}—{{/if}}</td>
                       <td data-sort-value="{{name}}">
                       <div>{{name}}</div>

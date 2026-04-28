@@ -12,9 +12,11 @@
   </head>
   <body>
     {{{body}}}
-    <script>
-      window.__PORTFOLIO__ = {{{initialStateJson}}};
-    </script>
-    <script src="/scripts/dashboard.js" defer></script>
+    {{#if includeDashboardScript}}
+      <script>
+        window.__PORTFOLIO__ = {{{initialStateJson}}};
+      </script>
+      <script src="/scripts/dashboard.js" defer></script>
+    {{/if}}
   </body>
 </html>

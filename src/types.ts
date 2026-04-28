@@ -178,6 +178,7 @@ export interface ClientState {
 
 export interface DashboardViewModel {
   pageTitle: string;
+  includeDashboardScript: boolean;
   activeTab: DashboardTab;
   activeTabs: {
     holdings: boolean;
@@ -191,4 +192,34 @@ export interface DashboardViewModel {
   commodityRatios: CommodityRatiosViewModel;
   expenses: ExpenseViewModel;
   initialStateJson: string;
+}
+
+export interface HoldingDetailsViewModel {
+  ticker: string;
+  name: string;
+  section: string;
+  sectionColor: string;
+  note: string | null;
+  shares: string;
+  snapshotValue: string;
+  livePrice: string;
+  marketValue: string;
+  priceToBook: string;
+  dividendYield: string;
+}
+
+export interface RelatedHoldingViewModel {
+  ticker: string;
+  name: string;
+  href: string;
+}
+
+export interface HoldingDetailsPageViewModel {
+  pageTitle: string;
+  includeDashboardScript: boolean;
+  initialStateJson: string;
+  backHref: string;
+  holding: HoldingDetailsViewModel | null;
+  relatedHoldings: RelatedHoldingViewModel[];
+  requestedTicker?: string;
 }

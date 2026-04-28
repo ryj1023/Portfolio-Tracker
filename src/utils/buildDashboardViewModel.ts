@@ -353,6 +353,7 @@ export function buildDashboardViewModel(
 
   return {
     pageTitle: 'Portfolio Dashboard',
+    includeDashboardScript: true,
     activeTab,
     activeTabs: {
       holdings: activeTab === 'holdings',
