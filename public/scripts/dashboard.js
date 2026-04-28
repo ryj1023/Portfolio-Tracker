@@ -7,6 +7,7 @@
   let commodityLookback = 'all';
   let activeTab = 'holdings';
   let expenseChart = null;
+  const SORT_DIRECTIONS = ['ascending', 'descending', 'none'];
 
   const getElement = (id) => document.getElementById(id);
   const escapeHtml = (value) => String(value)
@@ -15,6 +16,198 @@
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+  function normalizeSortableHeader(header, columnIndex) {
+    header.dataset.sortIndex = String(columnIndex);
+    header.classList.add('sortable-column');
+    header.tabIndex = 0;
+    header.setAttribute('role', 'button');
+    header.setAttribute('aria-sort', header.getAttribute('aria-sort') || 'none');
+  }
+
+  function refreshSortableTables(root = document) {
+    root.querySelectorAll('table').forEach((table) => {
+      const headers = table.querySelectorAll('thead th');
+      headers.forEach((header, columnIndex) => normalizeSortableHeader(header, columnIndex));
+
+      const tbody = table.tBodies[0];
+      if (!tbody) {
+        return;
+      }
+
+      Array.from(tbody.rows).forEach((row, rowIndex) => {
+        row.dataset.originalOrder = String(rowIndex);
+      });
+
+      table.dataset.sortColumnIndex = '';
+      table.dataset.sortDirection = 'none';
+      updateSortIndicators(table);
+    });
+  }
+
+  function cycleSortDirection(currentDirection, isSameColumn) {
+    if (!isSameColumn) {
+      return SORT_DIRECTIONS[0];
+    }
+
+    const currentIndex = SORT_DIRECTIONS.indexOf(currentDirection);
+    return SORT_DIRECTIONS[(currentIndex + 1) % SORT_DIRECTIONS.length];
+  }
+
+  function updateSortIndicators(table, activeColumnIndex = null, activeDirection = 'none') {
+    table.querySelectorAll('thead th').forEach((header, columnIndex) => {
+      const isActive = columnIndex === activeColumnIndex && activeDirection !== 'none';
+      const direction = isActive ? activeDirection : 'none';
+      header.dataset.sortDirection = direction;
+      header.setAttribute('aria-sort', direction);
+      header.classList.toggle('sorted', isActive);
+    });
+  }
+
+  function normalizeSortText(value) {
+    return String(value ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function parseSortNumber(value) {
+    const normalized = String(value ?? '')
+      .replace(/[()]/g, '')
+      .replace(/[$,%]/g, '')
+      .replace(/,/g, '')
+      .trim();
+
+    if (!normalized || normalized === '—' || normalized === '-') {
+      return Number.NaN;
+    }
+
+    const isNegativeByParens = /^\(.*\)$/.test(String(value ?? '').trim());
+    const numericValue = Number.parseFloat(normalized);
+    if (Number.isNaN(numericValue)) {
+      return Number.NaN;
+    }
+
+    return isNegativeByParens ? -numericValue : numericValue;
+  }
+
+  function parseSortDate(value) {
+    const timestamp = Date.parse(String(value ?? '').trim());
+    return Number.isNaN(timestamp) ? Number.NaN : timestamp;
+  }
+
+  function detectSortType(rows, columnIndex) {
+    const samples = rows
+      .map((row) => row.cells[columnIndex]?.dataset.sortValue ?? row.cells[columnIndex]?.textContent ?? '')
+      .map((value) => String(value).trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    if (samples.length && samples.every((sample) => !Number.isNaN(parseSortDate(sample)))) {
+      return 'date';
+    }
+
+    if (samples.length && samples.every((sample) => !Number.isNaN(parseSortNumber(sample)))) {
+      return 'number';
+    }
+
+    return 'text';
+  }
+
+  function extractSortValue(cell, sortType) {
+    const rawValue = cell?.dataset.sortValue ?? cell?.textContent ?? '';
+
+    if (sortType === 'date') {
+      return parseSortDate(rawValue);
+    }
+
+    if (sortType === 'number') {
+      return parseSortNumber(rawValue);
+    }
+
+    return normalizeSortText(rawValue);
+  }
+
+  function compareSortValues(leftValue, rightValue, direction) {
+    const leftInvalid = typeof leftValue === 'number' && Number.isNaN(leftValue);
+    const rightInvalid = typeof rightValue === 'number' && Number.isNaN(rightValue);
+
+    if (leftInvalid && rightInvalid) {
+      return 0;
+    }
+
+    if (leftInvalid) {
+      return 1;
+    }
+
+    if (rightInvalid) {
+      return -1;
+    }
+
+    if (leftValue < rightValue) {
+      return direction === 'ascending' ? -1 : 1;
+    }
+
+    if (leftValue > rightValue) {
+      return direction === 'ascending' ? 1 : -1;
+    }
+
+    return 0;
+  }
+
+  function sortTableByColumn(table, columnIndex, direction) {
+    const tbody = table.tBodies[0];
+    if (!tbody) {
+      return;
+    }
+
+    const rows = Array.from(tbody.rows);
+    if (!rows.length) {
+      return;
+    }
+
+    if (direction === 'none') {
+      rows
+        .sort((left, right) => Number(left.dataset.originalOrder) - Number(right.dataset.originalOrder))
+        .forEach((row) => tbody.appendChild(row));
+      table.dataset.sortColumnIndex = '';
+      table.dataset.sortDirection = 'none';
+      updateSortIndicators(table);
+      return;
+    }
+
+    const header = table.querySelectorAll('thead th')[columnIndex];
+    const sortType = header?.dataset.sortType || detectSortType(rows, columnIndex);
+
+    rows
+      .sort((left, right) => {
+        const comparison = compareSortValues(
+          extractSortValue(left.cells[columnIndex], sortType),
+          extractSortValue(right.cells[columnIndex], sortType),
+          direction
+        );
+
+        if (comparison !== 0) {
+          return comparison;
+        }
+
+        return Number(left.dataset.originalOrder) - Number(right.dataset.originalOrder);
+      })
+      .forEach((row) => tbody.appendChild(row));
+
+    table.dataset.sortColumnIndex = String(columnIndex);
+    table.dataset.sortDirection = direction;
+    updateSortIndicators(table, columnIndex, direction);
+  }
+
+  function activateColumnSort(header) {
+    const table = header.closest('table');
+    const columnIndex = Number(header.dataset.sortIndex);
+    const previousColumnIndex = Number(table?.dataset.sortColumnIndex ?? -1);
+    const previousDirection = table?.dataset.sortDirection || 'none';
+    const nextDirection = cycleSortDirection(previousDirection, previousColumnIndex === columnIndex);
+
+    if (table && Number.isInteger(columnIndex)) {
+      sortTableByColumn(table, columnIndex, nextDirection);
+    }
+  }
 
   const mainStatus = {
     pill: getElement('statusPill'),
@@ -89,20 +282,20 @@
           <table>
             <thead>
               <tr>
-                <th>Ticker</th>
-                <th>Name</th>
-                <th>Shares</th>
-                <th>Current Value</th>
-                <th>Price</th>
-                <th>P/B</th>
-                <th>Div Yield</th>
+                <th data-sort-type="text">Ticker</th>
+                <th data-sort-type="text">Name</th>
+                <th data-sort-type="number">Shares</th>
+                <th data-sort-type="number">Current Value</th>
+                <th data-sort-type="number">Price</th>
+                <th data-sort-type="number">P/B</th>
+                <th data-sort-type="number">Div Yield</th>
               </tr>
             </thead>
             <tbody>
               ${section.rows.map((row) => `
                 <tr>
                   <td class="ticker">${row.ticker ? escapeHtml(row.ticker) : '—'}</td>
-                  <td>
+                  <td data-sort-value="${escapeHtml(row.name)}">
                     <div>${escapeHtml(row.name)}</div>
                     ${row.note ? `<div class="note">${escapeHtml(row.note)}</div>` : ''}
                   </td>
@@ -134,12 +327,12 @@
           <table>
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Ticker</th>
-                <th>Yahoo Symbol</th>
-                <th>Name</th>
-                <th>Current Price</th>
-                <th>Historically Cheap Vs</th>
+                <th data-sort-type="number">Rank</th>
+                <th data-sort-type="text">Ticker</th>
+                <th data-sort-type="text">Yahoo Symbol</th>
+                <th data-sort-type="text">Name</th>
+                <th data-sort-type="number">Current Price</th>
+                <th data-sort-type="text">Historically Cheap Vs</th>
               </tr>
             </thead>
             <tbody id="commodity-rankings-body"></tbody>
@@ -149,6 +342,7 @@
 
     renderCommodityRatios(commodityRatios);
     bindCommodityLookbackControl();
+    refreshSortableTables(getElement('tab-holdings'));
   }
 
   function renderSectors(sectors) {
@@ -157,22 +351,22 @@
         <table>
           <thead>
             <tr>
-              <th>Sector</th>
-              <th>Value</th>
-              <th>Allocation</th>
-              <th>Holdings</th>
+              <th data-sort-type="text">Sector</th>
+              <th data-sort-type="number">Value</th>
+              <th data-sort-type="number">Allocation</th>
+              <th data-sort-type="number">Holdings</th>
             </tr>
           </thead>
           <tbody>
             ${sectors.map((sector) => `
               <tr>
-                <td>
+                <td data-sort-value="${escapeHtml(sector.name)}">
                   <span class="sector-key" style="background: ${sector.color};"></span>
                   ${escapeHtml(sector.name)}
                   ${sector.isStatic ? '<span class="muted small">(static)</span>' : ''}
                 </td>
                 <td>${escapeHtml(sector.value)}</td>
-                <td>
+                <td data-sort-value="${escapeHtml(String(sector.allocationBarWidth))}">
                   <div class="allocation-cell">
                     <div class="allocation-track">
                       <div class="allocation-bar" style="width: ${sector.allocationBarWidth}%; background: ${sector.color};"></div>
@@ -187,6 +381,8 @@
         </table>
       </div>
     `;
+
+    refreshSortableTables(getElement('tab-sectors'));
   }
 
   function renderCommodityRatios(commodityRatios) {
@@ -205,6 +401,8 @@
         <td>${escapeHtml(row.comparisonSummary)}</td>
       </tr>
     `).join('');
+
+    refreshSortableTables(rankingsBody.closest('.table-wrap') || getElement('tab-holdings'));
   }
 
   function renderViewModel(viewModel) {
@@ -477,7 +675,7 @@
         <tr data-category="${escapeHtml(transaction.category)}" data-transaction-date="${escapeHtml(transaction.transactionDate)}">
           <td>${escapeHtml(transaction.transactionDate)}</td>
           <td>${escapeHtml(transaction.description)}</td>
-          <td>
+          <td data-sort-value="${escapeHtml(transaction.category)}">
             <span class="category-badge" style="background: ${escapeHtml(transaction.categoryColor)}22; color: ${escapeHtml(transaction.categoryColor)}; border-color: ${escapeHtml(transaction.categoryColor)}44;">
               ${escapeHtml(transaction.category)}
             </span>
@@ -488,6 +686,8 @@
         </tr>
       `).join('');
     }
+
+    refreshSortableTables(getElement('tab-expenses'));
   }
 
   function renderExpenseChart() {
@@ -741,12 +941,32 @@
   getElement('categoryFilter')?.addEventListener('change', filterTransactions);
   getElement('monthFilter')?.addEventListener('change', filterTransactions);
   getElement('yearFilter')?.addEventListener('change', filterTransactions);
+  document.addEventListener('click', (event) => {
+    const header = event.target instanceof Element ? event.target.closest('thead th.sortable-column') : null;
+    if (header) {
+      activateColumnSort(header);
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    const header = event.target instanceof Element ? event.target.closest('thead th.sortable-column') : null;
+    if (!header) {
+      return;
+    }
+
+    event.preventDefault();
+    activateColumnSort(header);
+  });
 
   const searchParams = new URLSearchParams(window.location.search);
   commodityLookback = searchParams.get('lookback') || 'all';
   activeTab = normalizeTab(searchParams.get('tab') || state.activeTab);
   bindCommodityLookbackControl();
   populateExpenseFilters();
+  refreshSortableTables();
   if (activeTab === 'expenses') {
     renderExpenseChart();
   }

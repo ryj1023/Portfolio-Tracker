@@ -57,20 +57,20 @@
             <table>
               <thead>
                 <tr>
-                  <th>Ticker</th>
-                  <th>Name</th>
-                  <th>Shares</th>
-                  <th>Current Value</th>
-                  <th>Price</th>
-                  <th>P/B</th>
-                  <th>Div Yield</th>
+                    <th data-sort-type="text">Ticker</th>
+                    <th data-sort-type="text">Name</th>
+                    <th data-sort-type="number">Shares</th>
+                    <th data-sort-type="number">Current Value</th>
+                    <th data-sort-type="number">Price</th>
+                    <th data-sort-type="number">P/B</th>
+                    <th data-sort-type="number">Div Yield</th>
                 </tr>
               </thead>
               <tbody>
                 {{#each rows}}
                   <tr>
                     <td class="ticker">{{#if ticker}}{{ticker}}{{else}}—{{/if}}</td>
-                    <td>
+                      <td data-sort-value="{{name}}">
                       <div>{{name}}</div>
                       {{#if note}}<div class="note">{{note}}</div>{{/if}}
                     </td>
@@ -104,12 +104,12 @@
           <table>
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Ticker</th>
-                <th>Yahoo Symbol</th>
-                <th>Name</th>
-                <th>Current Price</th>
-                <th>Historically Cheap Vs</th>
+                <th data-sort-type="number">Rank</th>
+                <th data-sort-type="text">Ticker</th>
+                <th data-sort-type="text">Yahoo Symbol</th>
+                <th data-sort-type="text">Name</th>
+                <th data-sort-type="number">Current Price</th>
+                <th data-sort-type="text">Historically Cheap Vs</th>
               </tr>
             </thead>
             <tbody id="commodity-rankings-body">
@@ -142,22 +142,22 @@
         <table>
           <thead>
             <tr>
-              <th>Sector</th>
-              <th>Value</th>
-              <th>Allocation</th>
-              <th>Holdings</th>
+              <th data-sort-type="text">Sector</th>
+              <th data-sort-type="number">Value</th>
+              <th data-sort-type="number">Allocation</th>
+              <th data-sort-type="number">Holdings</th>
             </tr>
           </thead>
           <tbody>
             {{#each sectors}}
               <tr>
-                <td>
+                <td data-sort-value="{{name}}">
                   <span class="sector-key" style="background: {{color}};"></span>
                   {{name}}
                   {{#if isStatic}}<span class="muted small">(static)</span>{{/if}}
                 </td>
                 <td>{{value}}</td>
-                <td>
+                <td data-sort-value="{{allocationBarWidth}}">
                   <div class="allocation-cell">
                     <div class="allocation-track">
                       <div class="allocation-bar" style="width: {{allocationBarWidth}}%; background: {{color}};"></div>
@@ -228,12 +228,12 @@
         <table id="transactionTable">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Type</th>
-              <th>Amount</th>
-              <th>Memo</th>
+              <th data-sort-type="date">Date</th>
+              <th data-sort-type="text">Description</th>
+              <th data-sort-type="text">Category</th>
+              <th data-sort-type="text">Type</th>
+              <th data-sort-type="number">Amount</th>
+              <th data-sort-type="text">Memo</th>
             </tr>
           </thead>
           <tbody id="transactionTableBody">
@@ -241,7 +241,7 @@
               <tr data-category="{{category}}" data-transaction-date="{{transactionDate}}">
                 <td>{{transactionDate}}</td>
                 <td>{{description}}</td>
-                <td>
+                <td data-sort-value="{{category}}">
                   <span class="category-badge" style="background: {{categoryColor}}22; color: {{categoryColor}}; border-color: {{categoryColor}}44;">
                     {{category}}
                   </span>
