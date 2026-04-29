@@ -1,5 +1,12 @@
 import { HistoricalPriceMap, HistoricalPricePoint, Holding, PriceMap, PriceQuote } from '../types';
 
+export interface CompanyProfile {
+  longBusinessSummary: string | null;
+  sector: string | null;
+  industry: string | null;
+  website: string | null;
+}
+
 type YahooFinanceModule = {
   default: new (options?: { suppressNotices?: string[] }) => {
     quote: (ticker: string) => Promise<unknown>;
@@ -27,6 +34,18 @@ interface YahooQuote {
 }
 
 interface YahooQuoteSummary {
+  assetProfile?: {
+    longBusinessSummary?: string | null;
+    sector?: string | null;
+    industry?: string | null;
+    website?: string | null;
+  };
+  summaryProfile?: {
+    longBusinessSummary?: string | null;
+    sector?: string | null;
+    industry?: string | null;
+    website?: string | null;
+  };
   defaultKeyStatistics?: {
     priceToBook?: number | { raw?: number } | null;
   };
@@ -46,6 +65,15 @@ function isYahooQuote(value: unknown): value is YahooQuote {
 
 function emptyQuote(): PriceQuote {
   return { price: null, priceToBook: null, dividendYield: null, shortName: null };
+}
+
+function emptyCompanyProfile(): CompanyProfile {
+  return {
+    longBusinessSummary: null,
+    sector: null,
+    industry: null,
+    website: null
+  };
 }
 
 function normalizeNumber(value: unknown): number | null {
@@ -97,6 +125,24 @@ function toQuote(quote: unknown, quoteSummary?: unknown): PriceQuote {
   const price = Number.isFinite(quote.regularMarketPrice) ? quote.regularMarketPrice ?? null : null;
 
   return { price, priceToBook, dividendYield, shortName: quote.shortName ?? null };
+}
+
+function toCompanyProfile(quoteSummary: unknown): CompanyProfile {
+  const summary = quoteSummary && typeof quoteSummary === 'object' ? quoteSummary as YahooQuoteSummary : undefined;
+  const profile = summary?.assetProfile ?? summary?.summaryProfile;
+
+  if (!profile) {
+    return emptyCompanyProfile();
+  }
+
+  return {
+    longBusinessSummary: typeof profile.longBusinessSummary === 'string' && profile.longBusinessSummary.trim()
+      ? profile.longBusinessSummary.trim()
+      : null,
+    sector: typeof profile.sector === 'string' && profile.sector.trim() ? profile.sector.trim() : null,
+    industry: typeof profile.industry === 'string' && profile.industry.trim() ? profile.industry.trim() : null,
+    website: typeof profile.website === 'string' && profile.website.trim() ? profile.website.trim() : null
+  };
 }
 
 function isYahooChartResult(value: unknown): value is YahooChartResult {
@@ -183,4 +229,15 @@ export async function fetchTickerHistory(tickers: string[], lookbackDays?: numbe
     accumulator[ticker] = match ? toHistoricalPoints(match.value.chart) : [];
     return accumulator;
   }, {});
+}
+
+export async function fetchCompanyProfile(ticker: string): Promise<CompanyProfile> {
+  const yahooFinance = await getYahooFinance();
+
+  try {
+    const quoteSummary = await yahooFinance.quoteSummary(ticker, { modules: ['assetProfile', 'summaryProfile'] });
+    return toCompanyProfile(quoteSummary);
+  } catch {
+    return emptyCompanyProfile();
+  }
 }

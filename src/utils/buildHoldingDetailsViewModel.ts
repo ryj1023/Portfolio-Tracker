@@ -1,4 +1,5 @@
 import { SECTION_COLORS } from '../data/portfolioData';
+import { CompanyProfile } from '../services/priceService';
 import {
   HoldingDetailsPageViewModel,
   HoldingDetailsViewModel,
@@ -37,7 +38,12 @@ function buildRelatedHoldings(snapshot: PortfolioSnapshot, ticker: string, secti
     }));
 }
 
-function buildHoldingViewModel(snapshot: PortfolioSnapshot, prices: PriceMap, ticker: string): HoldingDetailsViewModel | null {
+function buildHoldingViewModel(
+  snapshot: PortfolioSnapshot,
+  prices: PriceMap,
+  ticker: string,
+  companyProfile: CompanyProfile
+): HoldingDetailsViewModel | null {
   const holding = snapshot.holdings.find((candidate) => candidate.ticker.toUpperCase() === ticker);
   if (!holding) {
     return null;
@@ -54,6 +60,7 @@ function buildHoldingViewModel(snapshot: PortfolioSnapshot, prices: PriceMap, ti
     name: holding.name,
     section: holding.section,
     sectionColor: SECTION_COLORS[holding.section] ?? '#94a3b8',
+    description: companyProfile.longBusinessSummary,
     note: holding.note || null,
     shares: formatNumber(holding.shares),
     snapshotValue: formatCurrency(holding.currentValue),
@@ -67,10 +74,11 @@ function buildHoldingViewModel(snapshot: PortfolioSnapshot, prices: PriceMap, ti
 export function buildHoldingDetailsViewModel(
   snapshot: PortfolioSnapshot,
   prices: PriceMap,
-  requestedTicker: string
+  requestedTicker: string,
+  companyProfile: CompanyProfile
 ): HoldingDetailsPageViewModel {
   const normalizedTicker = requestedTicker.trim().toUpperCase();
-  const holding = buildHoldingViewModel(snapshot, prices, normalizedTicker);
+  const holding = buildHoldingViewModel(snapshot, prices, normalizedTicker, companyProfile);
 
   return {
     pageTitle: holding ? `${holding.ticker} · ${holding.name}` : 'Holding Not Found',

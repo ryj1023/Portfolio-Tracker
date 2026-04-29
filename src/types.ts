@@ -199,6 +199,7 @@ export interface HoldingDetailsViewModel {
   name: string;
   section: string;
   sectionColor: string;
+  description: string | null;
   note: string | null;
   shares: string;
   snapshotValue: string;

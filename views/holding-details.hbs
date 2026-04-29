@@ -63,6 +63,15 @@
         </article>
 
         <article class="details-card">
+          <h3>Company description</h3>
+          {{#if holding.description}}
+            <p class="details-note">{{holding.description}}</p>
+          {{else}}
+            <p class="details-note muted">No company description is available from the market data source for this ticker.</p>
+          {{/if}}
+        </article>
+
+        <article class="details-card">
           <h3>Thesis note</h3>
           {{#if holding.note}}
             <p class="details-note">{{holding.note}}</p>

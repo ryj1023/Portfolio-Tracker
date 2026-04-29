@@ -6,7 +6,7 @@ import { COMMODITY_RATIO_SYMBOLS } from './data/portfolioData';
 import { fetchGoogleSheetCsv } from './services/googleSheetService';
 import { PortfolioStore } from './services/portfolioStore';
 import { ExpenseStore } from './services/expenseStore';
-import { fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
+import { fetchCompanyProfile, fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
 import { DashboardTab } from './types';
 import { buildClientState, buildDashboardViewModel } from './utils/buildDashboardViewModel';
 import { buildHoldingDetailsViewModel } from './utils/buildHoldingDetailsViewModel';
@@ -79,8 +79,12 @@ async function buildDashboardPayload(commodityLookback: string, activeTab: Dashb
 async function buildHoldingDetailsPayload(ticker: string) {
   await Promise.all([initialPortfolioLoadPromise, expenseStoreInitPromise]);
   const snapshot = store.getSnapshot();
-  const prices = await fetchPrices(snapshot.holdings);
-  return buildHoldingDetailsViewModel(snapshot, prices, ticker);
+  const normalizedTicker = ticker.trim().toUpperCase();
+  const [prices, companyProfile] = await Promise.all([
+    fetchPrices(snapshot.holdings),
+    fetchCompanyProfile(normalizedTicker)
+  ]);
+  return buildHoldingDetailsViewModel(snapshot, prices, normalizedTicker, companyProfile);
 }
 
 app.get('/', async (request, response, next) => {
