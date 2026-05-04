@@ -152,6 +152,23 @@ function parseStaticPreciousMetalsRow(section: string, name: string, ticker: str
   };
 }
 
+function parseStaticOtherStocksRow(name: string, value: number): StaticItem | null {
+  if (!(value > 0)) {
+    return null;
+  }
+
+  const normalizedName = normalizeSectionText(name);
+  if (normalizedName !== 'adp balance') {
+    return null;
+  }
+
+  return {
+    section: 'Other Stocks',
+    name: 'ADP Balance',
+    value
+  };
+}
+
 export function mergeStaticItems(base: StaticItem[], imported: StaticItem[]): StaticItem[] {
   const importedItemsByKey = new Map(imported.map((item) => [staticItemKey(item.section, item.name), { ...item }]));
 
@@ -189,9 +206,15 @@ export function parsePortfolioCsv(csv: string): ParsedPortfolioCsv {
     const shares = parseNumber(columnC);
     const currentValue = parseNumber(columnD);
     const staticPreciousMetalItem = parseStaticPreciousMetalsRow(section, columnA, columnB, currentValue);
+    const staticOtherStockItem = parseStaticOtherStocksRow(columnA, currentValue);
 
     if (staticPreciousMetalItem) {
       staticItems.push(staticPreciousMetalItem);
+      continue;
+    }
+
+    if (staticOtherStockItem) {
+      staticItems.push(staticOtherStockItem);
       continue;
     }
 

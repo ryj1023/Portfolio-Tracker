@@ -65,7 +65,7 @@ export const DEFAULT_STATIC_ITEMS: StaticItem[] = [
   { section: 'Precious Metals', name: 'Physical Silver (183.94 oz)', value: 12837 },
   { section: 'Precious Metals', name: 'Vaulted Silver', value: 897 },
   { section: 'Precious Metals', name: 'Physical Platinum (3.43 oz)', value: 6472 },
-  { section: 'Other Stocks', name: 'ADP Balance', value: 24922 },
+  { section: 'Other Stocks', name: 'ADP Balance', value: 27603 },
   { section: 'Crypto', name: 'All Crypto', value: 1739 },
   { section: 'Home Equity', name: 'Equity', value: 50000 },
   { section: 'Cash', name: 'Cash Reserves', value: 15000 }
