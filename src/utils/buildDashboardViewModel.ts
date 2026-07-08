@@ -5,6 +5,7 @@ import {
   CommodityRatiosViewModel,
   DashboardTab,
   DashboardViewModel,
+  DividendScheduleViewModel,
   ExpenseData,
   HistoricalPriceMap,
   Holding,
@@ -80,17 +81,24 @@ function holdingMarketValue(holding: Holding, prices: PriceMap): number | null {
   return price != null ? price * holding.shares : null;
 }
 
-function holdingDividendValue(holding: Holding, prices: PriceMap): number {
-  const marketValue = holdingMarketValue(holding, prices);
-  if (marketValue != null && marketValue > 0) {
-    return marketValue;
-  }
+function estimateAnnualDividendsFromQuoteYields(holdings: Holding[], prices: PriceMap): number {
+  return holdings.reduce((total, holding) => {
+    const dividendYield = prices[holding.ticker]?.dividendYield;
+    if (dividendYield == null || dividendYield <= 0) {
+      return total;
+    }
 
-  if (Number.isFinite(holding.currentValue) && holding.currentValue > 0) {
-    return holding.currentValue;
-  }
+    const marketValue = holdingMarketValue(holding, prices);
+    if (marketValue != null && marketValue > 0) {
+      return total + (marketValue * (dividendYield / 100));
+    }
 
-  return 0;
+    if (Number.isFinite(holding.currentValue) && holding.currentValue > 0) {
+      return total + (holding.currentValue * (dividendYield / 100));
+    }
+
+    return total;
+  }, 0);
 }
 
 function buildHoldingRow(holding: Holding, prices: PriceMap): HoldingRowViewModel {
@@ -319,20 +327,15 @@ export function buildDashboardViewModel(
   commodityHistory: HistoricalPriceMap,
   commodityLookback: string,
   activeTab: DashboardTab,
+  dividendSchedule: DividendScheduleViewModel | null,
   expenseData?: ExpenseData
 ): DashboardViewModel {
   let totalValue = 0;
-  let totalAnnualDividends = 0;
   const commodityRatios = buildCommodityRatios(commodityPrices, commodityHistory, commodityLookback);
 
   snapshot.holdings.forEach((holding) => {
     const value = holdingMarketValue(holding, prices) ?? holding.currentValue;
     totalValue += value;
-
-    const dividendYield = prices[holding.ticker]?.dividendYield;
-    if (dividendYield != null && dividendYield > 0) {
-      totalAnnualDividends += holdingDividendValue(holding, prices) * (dividendYield / 100);
-    }
   });
 
   snapshot.staticItems.forEach((item) => {
@@ -342,6 +345,9 @@ export function buildDashboardViewModel(
   const displayTotal = snapshot.summaryData.netWorth ?? totalValue;
   const clientState = buildClientState(snapshot, prices, expenseData, activeTab);
   const sectorCount = new Set([...snapshot.holdings.map((holding) => holding.section), ...snapshot.staticItems.map((item) => item.section)]).size;
+  const annualDividends = dividendSchedule?.status === 'ready'
+    ? dividendSchedule.annualEstimatedPayment
+    : formatCurrency(estimateAnnualDividendsFromQuoteYields(snapshot.holdings, prices));
 
   const expenses = expenseData ? buildExpenseViewModel(expenseData) : {
     categories: [],
@@ -359,13 +365,14 @@ export function buildDashboardViewModel(
       holdings: activeTab === 'holdings',
       charts: activeTab === 'charts',
       sectors: activeTab === 'sectors',
-      expenses: activeTab === 'expenses'
+      expenses: activeTab === 'expenses',
+      dividendSchedule: activeTab === 'dividend-schedule'
     },
     summary: {
       totalValue: formatCurrency(displayTotal),
       equities: snapshot.holdings.length,
       sectors: sectorCount,
-      annualDividends: formatCurrency(totalAnnualDividends)
+      annualDividends
     },
     sections: buildSections(snapshot, prices),
     sectors: buildSectors(snapshot, prices),

@@ -4,6 +4,7 @@ import express from 'express';
 import { engine } from 'express-handlebars';
 import { COMMODITY_RATIO_SYMBOLS } from './data/portfolioData';
 import { fetchGoogleSheetCsv } from './services/googleSheetService';
+import { fetchDividendSchedule } from './services/dividendScheduleService';
 import { PortfolioStore } from './services/portfolioStore';
 import { ExpenseStore } from './services/expenseStore';
 import { fetchCompanyProfile, fetchPrices, fetchTickerHistory, fetchTickerPrices } from './services/priceService';
@@ -23,7 +24,7 @@ function parseCommodityLookback(value: unknown): string {
 }
 
 function parseDashboardTab(value: unknown): DashboardTab {
-  return value === 'charts' || value === 'sectors' || value === 'expenses' ? value : 'holdings';
+  return value === 'charts' || value === 'sectors' || value === 'expenses' || value === 'dividend-schedule' ? value : 'holdings';
 }
 
 const app = express();
@@ -65,14 +66,18 @@ async function buildDashboardPayload(commodityLookback: string, activeTab: Dashb
     .map((commodity) => commodity.yahooTicker)
     .filter((ticker): ticker is string => ticker != null);
 
-  const [prices, commodityPrices, commodityHistory] = await Promise.all([
+  const [prices, commodityPrices, commodityHistory, dividendSchedule] = await Promise.all([
     fetchPrices(snapshot.holdings),
     fetchTickerPrices(commodityTickers),
-    fetchTickerHistory(commodityTickers, COMMODITY_LOOKBACK_DAYS[commodityLookback])
+    fetchTickerHistory(commodityTickers, COMMODITY_LOOKBACK_DAYS[commodityLookback]),
+    fetchDividendSchedule(snapshot.holdings).catch((error: unknown) => {
+      console.error(`Failed to fetch dividend schedule for dashboard summary (${snapshot.holdings.length} holdings).`, error);
+      return null;
+    })
   ]);
   return {
     state: buildClientState(snapshot, prices, expenseData, activeTab),
-    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback, activeTab, expenseData)
+    viewModel: buildDashboardViewModel(snapshot, prices, commodityPrices, commodityHistory, commodityLookback, activeTab, dividendSchedule, expenseData)
   };
 }
 
@@ -117,6 +122,17 @@ app.get('/api/prices', async (request, response, next) => {
       parseDashboardTab(request.query.tab)
     );
     response.json(payload);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/dividend-schedule', async (_request, response, next) => {
+  try {
+    await Promise.all([initialPortfolioLoadPromise, expenseStoreInitPromise]);
+    const snapshot = store.getSnapshot();
+    const schedule = await fetchDividendSchedule(snapshot.holdings);
+    response.json(schedule);
   } catch (error) {
     next(error);
   }

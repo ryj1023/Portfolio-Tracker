@@ -1,12 +1,15 @@
 (() => {
   const state = window.__PORTFOLIO__ || { holdings: [], staticItems: [], summaryData: {}, prices: {}, colors: {}, expenses: null };
-  const VALID_TABS = new Set(['holdings', 'charts', 'sectors', 'expenses']);
+  const VALID_TABS = new Set(['holdings', 'charts', 'sectors', 'expenses', 'dividend-schedule']);
   const charts = {};
   let importMode = 'text';
   let expenseImportMode = 'text';
   let commodityLookback = 'all';
   let activeTab = 'holdings';
   let expenseChart = null;
+  let dividendSchedule = null;
+  let dividendScheduleLoaded = false;
+  let dividendSchedulePromise = null;
   const SORT_DIRECTIONS = ['ascending', 'descending', 'none'];
 
   const getElement = (id) => document.getElementById(id);
@@ -70,8 +73,7 @@
 
   function parseSortNumber(value) {
     const normalized = String(value ?? '')
-      .replace(/[()]/g, '')
-      .replace(/[$,%]/g, '')
+      .replace(/[^0-9().-]/g, '')
       .replace(/,/g, '')
       .trim();
 
@@ -427,6 +429,139 @@
     }
   }
 
+  function resetDividendScheduleState() {
+    dividendSchedule = null;
+    dividendScheduleLoaded = false;
+    dividendSchedulePromise = null;
+    const content = getElement('dividendScheduleContent');
+    if (content) {
+      content.innerHTML = `
+        <div class="dividend-empty-state">
+          <h3>Dividend schedule loads when this tab opens</h3>
+          <p>The dashboard will call the configured dividend API and group upcoming payment dates by month.</p>
+        </div>
+      `;
+    }
+  }
+
+  function renderDividendSchedule(schedule) {
+    const content = getElement('dividendScheduleContent');
+    if (!content) {
+      return;
+    }
+
+    if (!schedule || schedule.status !== 'ready' || !Array.isArray(schedule.months) || !schedule.months.length) {
+      content.innerHTML = `
+        <div class="dividend-empty-state">
+          <h3>Dividend schedule unavailable</h3>
+          <p>${escapeHtml(schedule?.message || 'Unable to load dividend schedule data.')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="dividend-schedule-meta">
+        <p class="dividend-meta">${escapeHtml(schedule.message)}</p>
+        <p class="dividend-meta">As of ${escapeHtml(schedule.asOf)}</p>
+        <p class="dividend-meta">${escapeHtml(String(schedule.payableHoldingCount))} holdings with upcoming payments</p>
+      </div>
+      <div class="dividend-month-grid">
+        ${schedule.months.map((month) => `
+          <section class="dividend-month-card">
+            <div class="dividend-month-head">
+              <div>
+                <h3>${escapeHtml(month.monthLabel)}</h3>
+                <p class="dividend-month-summary">Estimated payout total for this payment month</p>
+              </div>
+              <div class="dividend-total">${escapeHtml(month.totalEstimatedPayment)}</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-sort-type="date">Payment Date</th>
+                    <th data-sort-type="text">Ticker</th>
+                    <th data-sort-type="text">Name</th>
+                    <th data-sort-type="number">Shares</th>
+                    <th data-sort-type="text">Frequency</th>
+                    <th data-sort-type="number">Dividend / Share</th>
+                    <th data-sort-type="number">Estimated Payment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${month.rows.map((row) => `
+                    <tr>
+                      <td data-sort-value="${escapeHtml(row.paymentDate)}">${escapeHtml(row.paymentDate)}</td>
+                      <td class="ticker">${escapeHtml(row.ticker)}</td>
+                      <td data-sort-value="${escapeHtml(row.name)}">${escapeHtml(row.name)}</td>
+                      <td>${escapeHtml(row.shares)}</td>
+                      <td>${escapeHtml(row.frequency)}</td>
+                      <td>${escapeHtml(row.dividendPerShare)}</td>
+                      <td>${escapeHtml(row.estimatedPayment)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        `).join('')}
+      </div>
+    `;
+
+    refreshSortableTables(content);
+  }
+
+  async function loadDividendSchedule({ force = false } = {}) {
+    if (dividendSchedulePromise) {
+      return dividendSchedulePromise;
+    }
+
+    if (dividendScheduleLoaded && !force) {
+      renderDividendSchedule(dividendSchedule);
+      return dividendSchedule;
+    }
+
+    const refreshButton = getElement('refreshDividendScheduleButton');
+    if (refreshButton) {
+      refreshButton.disabled = true;
+      refreshButton.setAttribute('aria-busy', 'true');
+    }
+
+    setStatus('main', 'loading', 'Loading dividend payment schedule from the dividend API…');
+
+    dividendSchedulePromise = fetch('/api/dividend-schedule')
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.message || 'Unable to load dividend schedule.');
+        }
+
+        dividendSchedule = payload;
+        dividendScheduleLoaded = true;
+        renderDividendSchedule(payload);
+        setStatus('main', payload.status === 'ready' ? 'ok' : 'error', payload.message);
+        return payload;
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Unable to load dividend schedule.';
+        dividendSchedule = { status: 'unavailable', message, months: [], asOf: '', payableHoldingCount: 0 };
+        dividendScheduleLoaded = false;
+        renderDividendSchedule(dividendSchedule);
+        setStatus('main', 'error', message);
+        return dividendSchedule;
+      })
+      .finally(() => {
+        dividendSchedulePromise = null;
+        if (refreshButton) {
+          refreshButton.disabled = false;
+          refreshButton.removeAttribute('aria-busy');
+        }
+      });
+
+    return dividendSchedulePromise;
+  }
+
   function showTab(tabName, { updateUrl = true, historyMode = 'push' } = {}) {
     activeTab = normalizeTab(tabName);
     state.activeTab = activeTab;
@@ -450,6 +585,10 @@
 
     if (activeTab === 'expenses') {
       renderExpenseChart();
+    }
+
+    if (activeTab === 'dividend-schedule') {
+      void loadDividendSchedule();
     }
 
     if (updateUrl) {
@@ -614,6 +753,7 @@
 
       const payload = await response.json();
       Object.assign(state, payload.state);
+      resetDividendScheduleState();
       renderViewModel(payload.viewModel);
       showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       setStatus('main', 'ok', `Updated ${new Date().toLocaleTimeString()}.`);
@@ -646,6 +786,7 @@
       }
 
       Object.assign(state, payload.state);
+      resetDividendScheduleState();
       renderViewModel(payload.viewModel);
       showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       closeImportModal();
@@ -910,6 +1051,7 @@
       }
 
       Object.assign(state, payload.state);
+      resetDividendScheduleState();
       renderViewModel(payload.viewModel);
       showTab(activeTab, { updateUrl: true, historyMode: 'replace' });
       populateExpenseFilters();
@@ -941,6 +1083,9 @@
   getElement('expenseImportTextTab').addEventListener('click', () => switchExpenseImportMode('text'));
   getElement('expenseImportFileTab').addEventListener('click', () => switchExpenseImportMode('file'));
   getElement('doExpenseImportButton').addEventListener('click', importExpenses);
+  getElement('refreshDividendScheduleButton')?.addEventListener('click', () => {
+    void loadDividendSchedule({ force: true });
+  });
   getElement('expenseImportModal').addEventListener('click', (event) => {
     if (event.target === getElement('expenseImportModal')) {
       closeExpenseImportModal();
@@ -993,6 +1138,7 @@
   const searchParams = new URLSearchParams(window.location.search);
   commodityLookback = searchParams.get('lookback') || 'all';
   activeTab = normalizeTab(searchParams.get('tab') || state.activeTab);
+  resetDividendScheduleState();
   bindCommodityLookbackControl();
   populateExpenseFilters();
   refreshSortableTables();

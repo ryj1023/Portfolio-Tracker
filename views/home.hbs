@@ -39,6 +39,7 @@
       <button class="tab-button{{#if activeTabs.charts}} active{{/if}}" type="button" data-tab="charts">Charts</button>
       <button class="tab-button{{#if activeTabs.sectors}} active{{/if}}" type="button" data-tab="sectors">Sectors</button>
       <button class="tab-button{{#if activeTabs.expenses}} active{{/if}}" type="button" data-tab="expenses">Expenses</button>
+      <button class="tab-button{{#if activeTabs.dividendSchedule}} active{{/if}}" type="button" data-tab="dividend-schedule">Dividend Schedule</button>
     </div>
 
     <div class="status-row">
@@ -254,6 +255,24 @@
           </tbody>
         </table>
       </div>
+    </div>
+
+    <div id="tab-dividend-schedule" class="tab-panel{{#if activeTabs.dividendSchedule}} active{{/if}}">
+      <section class="section-card dividend-schedule-card">
+        <div class="section-header dividend-schedule-header">
+          <div>
+            <span class="section-badge" style="background: #34d39922; color: #34d399; border-color: #34d39944;">Live dividend calendar</span>
+            <p class="dividend-schedule-subtitle">Loads the next payment-date dividend event for each eligible holding and groups estimated payouts across the next 12 months.</p>
+          </div>
+          <button id="refreshDividendScheduleButton" class="button button-secondary" type="button">Refresh Schedule</button>
+        </div>
+        <div id="dividendScheduleContent" class="dividend-schedule-content">
+          <div class="dividend-empty-state">
+            <h3>Dividend schedule loads when this tab opens</h3>
+            <p>The dashboard will call the configured dividend API and group upcoming payment dates by month.</p>
+          </div>
+        </div>
+      </section>
     </div>
   </section>
 </div>

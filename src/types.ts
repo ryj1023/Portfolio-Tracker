@@ -94,7 +94,35 @@ export interface CommodityRatiosViewModel {
   lookbackOptions: CommodityLookbackOptionViewModel[];
 }
 
-export type DashboardTab = 'holdings' | 'charts' | 'sectors' | 'expenses';
+export type DashboardTab = 'holdings' | 'charts' | 'sectors' | 'expenses' | 'dividend-schedule';
+
+export interface DividendScheduleHoldingViewModel {
+  ticker: string;
+  name: string;
+  shares: string;
+  paymentDate: string;
+  paymentMonth: string;
+  dividendPerShare: string;
+  estimatedPayment: string;
+  currency: string;
+  frequency: string;
+}
+
+export interface DividendScheduleMonthViewModel {
+  monthKey: string;
+  monthLabel: string;
+  totalEstimatedPayment: string;
+  rows: DividendScheduleHoldingViewModel[];
+}
+
+export interface DividendScheduleViewModel {
+  status: 'ready' | 'unavailable';
+  message: string;
+  asOf: string;
+  annualEstimatedPayment: string;
+  months: DividendScheduleMonthViewModel[];
+  payableHoldingCount: number;
+}
 
 export interface SectionViewModel {
   name: string;
@@ -185,6 +213,7 @@ export interface DashboardViewModel {
     charts: boolean;
     sectors: boolean;
     expenses: boolean;
+    dividendSchedule: boolean;
   };
   summary: SummaryViewModel;
   sections: SectionViewModel[];

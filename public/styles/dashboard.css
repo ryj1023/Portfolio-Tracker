@@ -728,6 +728,85 @@ td.income {
   color: var(--muted);
 }
 
+.dividend-schedule-card {
+  margin-top: 18px;
+}
+
+.dividend-schedule-header {
+  align-items: flex-start;
+  padding-bottom: 18px;
+}
+
+.dividend-schedule-subtitle {
+  margin: 12px 0 0;
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.dividend-schedule-content {
+  padding: 0 20px 20px;
+}
+
+.dividend-empty-state {
+  padding: 28px;
+  border: 1px dashed rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.dividend-empty-state h3,
+.dividend-month-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.dividend-empty-state p,
+.dividend-month-summary,
+.dividend-meta {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.dividend-schedule-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.dividend-meta {
+  font-size: 0.92rem;
+}
+
+.dividend-month-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.dividend-month-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.48);
+  overflow: hidden;
+}
+
+.dividend-month-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 20px 20px 0;
+}
+
+.dividend-total {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #86efac;
+  text-align: right;
+}
+
 @media (max-width: 1100px) {
   .stats-grid,
   .chart-grid,
@@ -748,7 +827,9 @@ td.income {
 
   .hero,
   .modal-header,
-  .modal-footer {
+  .modal-footer,
+  .dividend-month-head,
+  .dividend-schedule-header {
     flex-direction: column;
     align-items: stretch;
   }
